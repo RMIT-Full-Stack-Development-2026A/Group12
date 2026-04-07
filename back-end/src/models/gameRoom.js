@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const ChatSchema = new mongoose.Schema({
   senderId: mongoose.Schema.Types.ObjectId,
@@ -27,11 +27,11 @@ const GameRoomSchema = new mongoose.Schema({
     enum: ['WAITING', 'PLAYING', 'CLOSED']
   },
 
-  chat: [ChatSchema], // 🔥 Ultimo chat
+  chat: [ChatSchema],
 
   createdAt: Date,
   startedAt: Date
 
 });
 
-module.exports = mongoose.model('GameRoom', GameRoomSchema);
+export default  mongoose.model('GameRoom', GameRoomSchema);

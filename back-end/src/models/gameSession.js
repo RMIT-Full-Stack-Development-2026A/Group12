@@ -1,9 +1,9 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const MoveSchema = new mongoose.Schema({
   moveNumber: Number,
-  player: String, // X or O
-  position: String, // C2
+  player: String, 
+  position: String, 
   timestamp: Date
 }, { _id: false });
 
@@ -33,7 +33,7 @@ const GameSessionSchema = new mongoose.Schema({
     enum: ['LOCAL', 'SINGLE', 'ONLINE']
   },
 
-  moves: [MoveSchema], // 🔥 Ultimo
+  moves: [MoveSchema], 
 
   result: {
     type: String,
@@ -45,4 +45,4 @@ const GameSessionSchema = new mongoose.Schema({
 
 }, { timestamps: true });
 
-module.exports = mongoose.model('GameSession', GameSessionSchema);
+export default  mongoose.model('GameSession', GameSessionSchema);
