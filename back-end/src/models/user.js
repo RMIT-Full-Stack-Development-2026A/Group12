@@ -4,12 +4,15 @@ const UserSchema = new mongoose.Schema({
   username: {
     type: String,
     required: true,
-    match: /^[a-zA-Z0-9_-]+$/
+    match: /^[a-zA-Z0-9_-]+$/,
+    trim: true
   },
   email: {
     type: String,
     required: true,
-    unique: true
+    unique: true,
+    lowercase: true,
+    trim: true
   },
   passwordHash: {
     type: String,
@@ -30,10 +33,26 @@ const UserSchema = new mongoose.Schema({
     default: true
   },
 
-  preferences: {
-    boardSize: Number,
-    theme: String,
-    marker: String
+  isPremium: {
+    type: Boolean,
+    default: false
+  },
+
+  walletBalance: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
+
+  failedLogins: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
+
+  lockUntil: {
+    type: Date,
+    default: null
   }
 
 }, { timestamps: true });
