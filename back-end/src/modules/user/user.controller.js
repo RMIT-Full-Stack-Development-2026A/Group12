@@ -901,7 +901,7 @@ function handleError(res, error) {
 
 async function getProfile(req, res) {
   try {
-    const data = await getProfileByUserId(req.params.user_id);
+    const data = await userService.getProfileByUserId(req.params.user_id);
     return res.status(200).json({
       success: true,
       data
@@ -913,7 +913,7 @@ async function getProfile(req, res) {
 
 async function updateProfile(req, res) {
   try {
-    const data = await updateProfileByUserId(req.params.user_id, req.body);
+    const data = await userService.updateProfileByUserId(req.params.user_id, req.body);
     return res.status(200).json({
       success: true,
       message: 'Profile updated successfully',
@@ -924,67 +924,7 @@ async function updateProfile(req, res) {
   }
 }
 
-async function uploadAvatarMiddleware(req, res, next) {
-  try {
-    await new Promise((resolve, reject) => {
-      upload.single('avatar')(req, res, (error) => {
-        if (error) {
-          reject(error);
-          return;
-        }
-
-        resolve();
-      });
-    });
-
-    return next();
-  } catch (error) {
-    const mapped = mapUploadError(error);
-    if (mapped) {
-      return res.status(mapped.statusCode).json(mapped.body);
-    }
-
-    return res.status(500).json({
-      success: false,
-      error: 'Internal server error'
-    });
-  }
-}
-
-async function updateAvatar(req, res) {
-  try {
-    const data = await updateAvatarByUserId(req.params.user_id, req.file);
-
-    return res.status(200).json({
-      success: true,
-      message: 'Avatar updated successfully',
-      data
-    });
-  } catch (error) {
-    return handleError(res, error);
-  }
-}
-
-async function getSessionHistory(req, res) {
-  try {
-    const data = await getSessionHistoryByUserId(req.params.user_id, req.query);
-    return res.status(200).json({
-      success: true,
-      data
-    });
-  } catch (error) {
-    console.error(error);
-    return res.status(500).json({
-      success: false,
-      error: 'Internal server error'
-    });
-  }
-}
-
 module.exports = {
   getProfile,
-  updateProfile,
-  uploadAvatarMiddleware,
-  updateAvatar,
-  getSessionHistory
+  updateProfile
 };

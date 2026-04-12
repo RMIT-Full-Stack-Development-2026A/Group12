@@ -3,13 +3,8 @@
 // Feature: Edit Profile (Requirement 3.1.1, 3.2.1)
 
 const jwt = require('jsonwebtoken');
-
-let User;
-try {
-  User = require('../models/user.model');
-} catch {
-  User = require('../models/user');
-}
+const TokenBlacklist = require('../models/tokenBlacklist');
+const userRepository = require('../modules/user/user.repository');
 
 function getTokenFromHeader(authorizationHeader) {
   if (!authorizationHeader || typeof authorizationHeader !== 'string') {
@@ -31,6 +26,11 @@ async function authenticateJWT(req, res, next) {
       return res.status(401).json({ success: false, error: 'Unauthorized' });
     }
 
+    const blacklisted = await TokenBlacklist.findOne({ token }).lean().exec();
+    if (blacklisted) {
+      return res.status(401).json({ success: false, error: 'Unauthorized' });
+    }
+
     const payload = jwt.verify(token, process.env.JWT_SECRET);
     const tokenUserId = payload.userId || payload.user_id || payload.sub;
 
@@ -38,7 +38,7 @@ async function authenticateJWT(req, res, next) {
       return res.status(401).json({ success: false, error: 'Unauthorized' });
     }
 
-    const authUser = await User.findById(tokenUserId.toString()).exec();
+    const authUser = await userRepository.findById(tokenUserId.toString());
     if (authUser && authUser.isActive === false) {
       return res.status(403).json({
         success: false,
