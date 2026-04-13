@@ -1,15 +1,20 @@
-import mongoose from "mongoose";
-import dotenv from "dotenv";
+const mongoose = require('mongoose');
+require('dotenv').config();
 
-dotenv.config();
+async function connectToDatabase() {
+    try {
+        if (!process.env.MONGO_URI) {
+            throw new Error('MONGO_URI is not defined in environment variables');
+        }
 
-const uri  = "mongodb://s4080210_db_user:Q150605a@ac-qhltacc-shard-00-00.ktbf2ja.mongodb.net:27017,ac-qhltacc-shard-00-01.ktbf2ja.mongodb.net:27017,ac-qhltacc-shard-00-02.ktbf2ja.mongodb.net:27017/?ssl=true&replicaSet=atlas-hzotir-shard-0&authSource=admin&appName=demodb";
-export async function connectToDatabase() {
-  try {
-    await mongoose.connect(uri);
-    console.log("Connected to MongoDB");
-  } catch (error) {
-    console.error("MongoDB connection error:", error);
-    throw error;
-  }
+        await mongoose.connect(process.env.MONGO_URI);
+        console.log('Connected to MongoDB');
+
+        return mongoose.connection;
+    } catch (error) {
+        console.error('Error connecting to MongoDB:', error);
+        throw error;
+    }
 }
+
+module.exports = connectToDatabase;
