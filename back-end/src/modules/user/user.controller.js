@@ -1,7 +1,7 @@
 /*
  * PROJECT  : TicTacToang
  * MODULE   : User Profile
- * LAYER    : Controller (fused minimal layer)
+ * LAYER    : Controller
  * FEATURE  : Edit Profile / Avatar Upload / Session History
  * BRANCH   : nguyen
  * AUTHOR   : Edit Profile Developer

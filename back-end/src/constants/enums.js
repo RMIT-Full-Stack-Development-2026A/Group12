@@ -4,9 +4,6 @@
  * MODULE   : User Profile
  * LAYER    : Constant
  * FEATURE  : Edit Profile / Session History
- * BRANCH   : feature/edit-profile
- * AUTHOR   : Edit Profile Developer
- * CREATED  : 2026-04-10
  * SRS REF  : 3.1.1 / 3.2.1 / 3.1.2
  * NOTE     : Shared constants for profile update and session output mapping.
  * ============================================================

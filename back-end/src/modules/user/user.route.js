@@ -9,19 +9,6 @@
  * SRS REF  : 3.1.1 / 3.2.1 / 3.1.2
  */
 
-/*
- * DEPENDENCY NOTE:
- * This file imports from: ../../middleware/auth.middleware.js
- * That file is OWNED BY: feature/login branch
- * Expected exports   : { authenticate, checkOwnership }
- * If that file does not exist yet, create a STUB version:
- *   module.exports = {
- *     authenticate: (req, res, next) => next(),
- *     checkOwnership: (req, res, next) => next()
- *   };
- * Remove stub once feature/login is merged into main.
- */
-
 const express = require('express');
 const userController = require('./user.controller');
 

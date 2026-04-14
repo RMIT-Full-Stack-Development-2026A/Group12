@@ -3,10 +3,8 @@
  * PROJECT  : TicTacToang
  * MODULE   : User Profile
  * LAYER    : Model
- * FEATURE  : Edit Profile
  * BRANCH   : feature/edit-profile
  * AUTHOR   : Edit Profile Developer
- * CREATED  : 2026-04-10
  * SRS REF  : 3.1.1 / 3.2.1
  * NOTE     : Stores UI preference choices used by profile APIs.
  * ============================================================
