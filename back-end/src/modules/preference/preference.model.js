@@ -8,10 +8,7 @@
  * AUTHOR   : Edit Profile Developer
  * CREATED  : 2026-04-10
  * SRS REF  : 3.1.1 / 3.2.1
- * ------------------------------------------------------------
- * OWNED BY THIS BRANCH - Do NOT modify from other branches.
- * To use data from this module, import via exposed interface
- * only. Do NOT import Service layer directly (see A.3.1).
+ * NOTE     : Stores UI preference choices used by profile APIs.
  * ============================================================
  */
 

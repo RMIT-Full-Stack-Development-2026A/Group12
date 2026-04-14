@@ -1,15 +1,26 @@
-// Module: User Profile
-// Layer: App
-// Feature: Edit Profile (Requirement 3.1.1, 3.2.1)
-
 const express = require('express');
+const cors = require('cors');
+const fs = require('fs');
 const path = require('path');
 const userRouter = require('./modules/user/user.route');
 
 const app = express();
 
+app.use(cors());
 app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
+
+app.get('/api/health', (req, res) => {
+  res.status(200).json({ message: 'API is running' });
+});
+
+const authRouterPath = path.join(__dirname, 'router', 'authRouter.js');
+if (fs.existsSync(authRouterPath)) {
+  // Optional mount for teammate login/register branch.
+  const authRouter = require('./router/authRouter');
+  app.use('/api/auth', authRouter);
+}
+
 app.use('/api/user', userRouter);
 
 app.use((req, res) => {

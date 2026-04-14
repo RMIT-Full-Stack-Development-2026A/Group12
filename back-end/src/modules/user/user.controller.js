@@ -40,7 +40,6 @@ try {
 
 const SALT_ROUNDS = 12;
 const USERNAME_REGEX = /^[A-Za-z0-9_-]{3,30}$/;
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PASSWORD_SPECIAL_REGEX = /[$#@!]/;
 
 const upload = multer({
@@ -135,33 +134,6 @@ function validateUsername(username) {
       'Username must contain only letters, numbers, _ or -. Example: player_01, John-Doe',
       'Contains unsupported characters or length is not between 3 and 30',
       'John-Doe'
-    );
-  }
-
-  return null;
-}
-
-function normalizeEmail(value) {
-  return String(value).trim().toLowerCase();
-}
-
-function validateEmail(email) {
-  if (typeof email !== 'string' || email.trim().length === 0) {
-    return createValidationError(
-      'email',
-      'Email must be a valid address. Example: player01@gmail.com',
-      'Email is empty or not a string',
-      'player01@gmail.com'
-    );
-  }
-
-  const value = normalizeEmail(email);
-  if (!EMAIL_REGEX.test(value)) {
-    return createValidationError(
-      'email',
-      'Email must be a valid address. Example: player01@gmail.com',
-      'Email format is invalid',
-      'player01@gmail.com'
     );
   }
 
@@ -310,7 +282,6 @@ function validateUpdatePayload(payload) {
   const errors = [];
 
   const hasUserField =
-    payload.email !== undefined ||
     payload.username !== undefined ||
     payload.password !== undefined ||
     payload.country !== undefined;
@@ -337,13 +308,6 @@ function validateUpdatePayload(payload) {
     const usernameError = validateUsername(payload.username);
     if (usernameError) {
       errors.push(usernameError);
-    }
-  }
-
-  if (payload.email !== undefined) {
-    const emailError = validateEmail(payload.email);
-    if (emailError) {
-      errors.push(emailError);
     }
   }
 
@@ -618,7 +582,6 @@ async function updateProfileByUserId(userId, body) {
   }
 
   const payload = {
-    email: body?.email,
     username: body?.username,
     password: body?.password,
     confirmPassword: body?.confirmPassword,
@@ -645,29 +608,11 @@ async function updateProfileByUserId(userId, body) {
     }
   }
 
-  if (payload.email !== undefined) {
-    const normalizedEmail = normalizeEmail(payload.email);
-    const existingUser = await User.findOne({ email: normalizedEmail }).exec();
-    if (existingUser && existingUser._id.toString() !== userId.toString()) {
-      validationErrors.push(
-        createValidationError(
-          'email',
-          'Email must be unique',
-          'Another account already uses this email address',
-          'player01@gmail.com'
-        )
-      );
-    }
-  }
-
   if (validationErrors.length > 0) {
     throw createAppError(400, 'Validation failed', validationErrors);
   }
 
   const userUpdate = {};
-  if (payload.email !== undefined) {
-    userUpdate.email = normalizeEmail(payload.email);
-  }
   if (payload.username !== undefined) {
     userUpdate.username = payload.username.trim();
   }
@@ -901,7 +846,7 @@ function handleError(res, error) {
 
 async function getProfile(req, res) {
   try {
-    const data = await userService.getProfileByUserId(req.params.user_id);
+    const data = await getProfileByUserId(req.params.user_id);
     return res.status(200).json({
       success: true,
       data
@@ -913,7 +858,7 @@ async function getProfile(req, res) {
 
 async function updateProfile(req, res) {
   try {
-    const data = await userService.updateProfileByUserId(req.params.user_id, req.body);
+    const data = await updateProfileByUserId(req.params.user_id, req.body);
     return res.status(200).json({
       success: true,
       message: 'Profile updated successfully',
@@ -924,7 +869,67 @@ async function updateProfile(req, res) {
   }
 }
 
+async function uploadAvatarMiddleware(req, res, next) {
+  try {
+    await new Promise((resolve, reject) => {
+      upload.single('avatar')(req, res, (error) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+
+        resolve();
+      });
+    });
+
+    return next();
+  } catch (error) {
+    const mapped = mapUploadError(error);
+    if (mapped) {
+      return res.status(mapped.statusCode).json(mapped.body);
+    }
+
+    return res.status(500).json({
+      success: false,
+      error: 'Internal server error'
+    });
+  }
+}
+
+async function updateAvatar(req, res) {
+  try {
+    const data = await updateAvatarByUserId(req.params.user_id, req.file);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Avatar updated successfully',
+      data
+    });
+  } catch (error) {
+    return handleError(res, error);
+  }
+}
+
+async function getSessionHistory(req, res) {
+  try {
+    const data = await getSessionHistoryByUserId(req.params.user_id, req.query);
+    return res.status(200).json({
+      success: true,
+      data
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      success: false,
+      error: 'Internal server error'
+    });
+  }
+}
+
 module.exports = {
   getProfile,
-  updateProfile
+  updateProfile,
+  uploadAvatarMiddleware,
+  updateAvatar,
+  getSessionHistory
 };
