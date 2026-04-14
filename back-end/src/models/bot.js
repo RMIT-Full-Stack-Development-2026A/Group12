@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+const mongoose = require("mongoose");
 
 const BotSchema = new mongoose.Schema({
     name: String,
@@ -9,4 +9,4 @@ const BotSchema = new mongoose.Schema({
 });
 
 const Bot = mongoose.model("Bot", BotSchema);
-export default Bot;
+module.exports = Bot;

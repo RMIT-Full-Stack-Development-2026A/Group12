@@ -1,9 +1,9 @@
-import mongoose from 'mongoose';
+const mongoose = require('mongoose');
 
 const MoveSchema = new mongoose.Schema({
   moveNumber: Number,
-  player: String, 
-  position: String, 
+  player: String,
+  position: String,
   timestamp: Date
 }, { _id: false });
 
@@ -14,7 +14,8 @@ const GameSessionSchema = new mongoose.Schema({
   },
   player2Id: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User'
+    ref: 'User',
+    default: null
   },
 
   aiLevel: {
@@ -30,19 +31,30 @@ const GameSessionSchema = new mongoose.Schema({
 
   gameType: {
     type: String,
-    enum: ['LOCAL', 'SINGLE', 'ONLINE']
+    enum: ['LOCAL', 'SINGLE', 'ONLINE'],
+    required: true
   },
 
-  moves: [MoveSchema], 
+  moves: {
+    type: [MoveSchema],
+    default: []
+  },
 
   result: {
     type: String,
-    enum: ['PLAYER1_WIN', 'PLAYER2_WIN', 'DRAW', 'ABORT']
+    enum: ['PLAYER1_WIN', 'PLAYER2_WIN', 'DRAW', 'ABORT'],
+    default: null
   },
 
-  startTime: Date,
-  endTime: Date
+  startTime: {
+    type: Date,
+    default: Date.now
+  },
+  endTime: {
+    type: Date,
+    default: null
+  }
 
 }, { timestamps: true });
 
-export default  mongoose.model('GameSession', GameSessionSchema);
+module.exports = mongoose.model('GameSession', GameSessionSchema);

@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+const mongoose = require('mongoose');
 
 const TransactionSchema = new mongoose.Schema({
   walletId: mongoose.Schema.Types.ObjectId,
@@ -13,4 +13,4 @@ const TransactionSchema = new mongoose.Schema({
   }
 });
 
-export default mongoose.model("Transaction", TransactionSchema);
+module.exports = mongoose.model('Transaction', TransactionSchema);

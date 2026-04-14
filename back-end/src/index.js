@@ -4,6 +4,7 @@ require('dotenv').config();
 
 const connectToDatabase = require('./config/db');
 const authRouter = require('./router/authRouter');
+const roomRouter = require('./router/roomRouter');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -16,7 +17,7 @@ app.get('/api/health', (req, res) => {
 });
 
 app.use('/api/auth', authRouter);
-
+app.use('/api/rooms', roomRouter);
 function startServer() {
   app.listen(PORT, () => {
     console.log(`Server started on port ${PORT}`);

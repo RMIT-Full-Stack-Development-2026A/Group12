@@ -1,37 +1,76 @@
-import mongoose from 'mongoose';
+const mongoose = require('mongoose');
 
 const ChatSchema = new mongoose.Schema({
-  senderId: mongoose.Schema.Types.ObjectId,
-  message: String,
-  timestamp: Date
+  senderId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null
+  },
+  message: {
+    type: String,
+    required: true
+  },
+  timestamp: {
+    type: Date,
+    default: Date.now
+  }
 }, { _id: false });
 
 const PlayerSchema = new mongoose.Schema({
-  userId: mongoose.Schema.Types.ObjectId,
-  mark: String,
-  connected: Boolean
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  mark: {
+    type: String,
+    enum: ['X', 'O'],
+    required: true
+  },
+  connected: {
+    type: Boolean,
+    default: true
+  }
 }, { _id: false });
 
 const GameRoomSchema = new mongoose.Schema({
   roomCode: {
     type: String,
-    unique: true
+    unique: true,
+    required: true
   },
 
-  players: [PlayerSchema],
+  players: {
+    type: [PlayerSchema],
+    default: []
+  },
 
-  currentTurn: String,
+  currentTurn: {
+    type: String,
+    enum: ['X', 'O'],
+    default: 'X'
+  },
 
   status: {
     type: String,
-    enum: ['WAITING', 'PLAYING', 'CLOSED']
+    enum: ['WAITING', 'PLAYING', 'CLOSED'],
+    default: 'WAITING'
   },
 
-  chat: [ChatSchema],
+  chat: {
+    type: [ChatSchema],
+    default: []
+  },
 
-  createdAt: Date,
-  startedAt: Date
+  createdAt: {
+    type: Date,
+    default: Date.now
+  },
 
+  startedAt: {
+    type: Date,
+    default: null
+  }
 });
 
-export default  mongoose.model('GameRoom', GameRoomSchema);
+module.exports = mongoose.model('GameRoom', GameRoomSchema);

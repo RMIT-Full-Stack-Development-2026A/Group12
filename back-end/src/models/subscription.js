@@ -1,4 +1,4 @@
-import mongoose from 'mongoose';
+const mongoose = require('mongoose');
 
 const SubscriptionSchema = new mongoose.Schema({
   userId: {
@@ -10,4 +10,4 @@ const SubscriptionSchema = new mongoose.Schema({
   endDate: Date
 });
 
-export default  mongoose.model('Subscription', SubscriptionSchema);
+module.exports = mongoose.model('Subscription', SubscriptionSchema);
