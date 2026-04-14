@@ -3,7 +3,6 @@
 // Feature: Edit Profile (Requirement 3.1.1, 3.2.1)
 
 const jwt = require('jsonwebtoken');
-const TokenBlacklist = require('../models/tokenBlacklist');
 
 let User;
 try {
@@ -29,11 +28,6 @@ async function authenticateJWT(req, res, next) {
   try {
     const token = getTokenFromHeader(req.headers.authorization);
     if (!token) {
-      return res.status(401).json({ success: false, error: 'Unauthorized' });
-    }
-
-    const blacklisted = await TokenBlacklist.findOne({ token }).lean().exec();
-    if (blacklisted) {
       return res.status(401).json({ success: false, error: 'Unauthorized' });
     }
 
