@@ -1,5 +1,7 @@
 const mongoose = require('mongoose');
 
+const ALLOWED_MARKERS = ['X', 'O', 'A', 'B', '△', '○'];
+
 const ChatSchema = new mongoose.Schema({
   senderId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -24,7 +26,7 @@ const PlayerSchema = new mongoose.Schema({
   },
   mark: {
     type: String,
-    enum: ['X', 'O'],
+    enum: ALLOWED_MARKERS,
     required: true
   },
   connected: {
@@ -45,9 +47,20 @@ const GameRoomSchema = new mongoose.Schema({
     default: []
   },
 
+  boardSize: {
+    type: Number,
+    enum: [3, 10, 15],
+    default: 10
+  },
+
+  hostMarker: {
+    type: String,
+    enum: ALLOWED_MARKERS,
+    required: true
+  },
   currentTurn: {
     type: String,
-    enum: ['X', 'O'],
+    enum: ALLOWED_MARKERS,
     default: 'X'
   },
 

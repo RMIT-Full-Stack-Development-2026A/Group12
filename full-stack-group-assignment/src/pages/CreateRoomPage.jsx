@@ -1,11 +1,7 @@
 import CreateRoomForm from '../components/CreateRoomForm';
 
-function CreateRoomPage() {
-  return (
-    <div>
-      <CreateRoomForm />
-    </div>
-  );
+function CreateRoomPage({ currentUser }) {
+  return <CreateRoomForm currentUser={currentUser} />;
 }
 
 export default CreateRoomPage;

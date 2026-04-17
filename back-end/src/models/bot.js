@@ -4,7 +4,8 @@ const BotSchema = new mongoose.Schema({
     name: String,
     difficulty: {
         type: String,
-        enum: ['EASY', 'MEDIUM', 'HARD']
+        enum: ['easy', 'medium', 'hard'],
+        required: true
     }
 });
 

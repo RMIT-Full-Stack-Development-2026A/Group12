@@ -11,7 +11,7 @@ const initialRegisterForm = {
   confirmPassword: '',
 }
 
-function AuthForm() {
+function AuthForm({ onLoginSuccess }) {
   const [mode, setMode] = useState('login')
   const [message, setMessage] = useState('')
 
@@ -90,7 +90,9 @@ function AuthForm() {
       setMessage(data.message || 'Login failed')
       return
     }
-
+    if (onLoginSuccess) {
+      onLoginSuccess(data.user)
+    }
     setMessage('Login successful')
   }
 

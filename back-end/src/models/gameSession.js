@@ -17,7 +17,16 @@ const GameSessionSchema = new mongoose.Schema({
     ref: 'User',
     default: null
   },
-
+    player1Marker: {
+  type: String,
+  enum: ['X', 'O', 'A', 'B', '△', '○'],
+  default: null
+},
+player2Marker: {
+  type: String,
+  enum: ['X', 'O', 'A', 'B', '△', '○'],
+  default: null
+},
   aiLevel: {
     type: String,
     enum: ['easy', 'medium', 'hard']
@@ -25,7 +34,7 @@ const GameSessionSchema = new mongoose.Schema({
 
   boardSize: {
     type: Number,
-    enum: [10, 15],
+    enum: [3, 10, 15],
     default: 10
   },
 
@@ -53,8 +62,7 @@ const GameSessionSchema = new mongoose.Schema({
   endTime: {
     type: Date,
     default: null
-  }
-
+  },
 }, { timestamps: true });
 
 module.exports = mongoose.model('GameSession', GameSessionSchema);
