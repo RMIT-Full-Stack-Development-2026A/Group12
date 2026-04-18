@@ -1,7 +1,23 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import './AuthForm.css'
 
 const API_BASE_URL = 'http://localhost:5000/api/auth'
+const API_ROOT_URL = 'http://localhost:5000/api'
+const TOKEN_STORAGE_KEY = 'auth_token'
+const FALLBACK_COUNTRIES = [
+  'Vietnam',
+  'Australia',
+  'United States',
+  'United Kingdom',
+  'Canada',
+  'Singapore',
+  'Japan',
+  'South Korea',
+  'India',
+  'Germany',
+  'France',
+  'New Zealand',
+]
 
 const initialRegisterForm = {
   email: '',
@@ -14,6 +30,8 @@ const initialRegisterForm = {
 function AuthForm() {
   const [mode, setMode] = useState('login')
   const [message, setMessage] = useState('')
+  const [countrySearch, setCountrySearch] = useState('')
+  const [countryOptions, setCountryOptions] = useState(FALLBACK_COUNTRIES)
 
   const [loginForm, setLoginForm] = useState({
     email: '',
@@ -21,6 +39,73 @@ function AuthForm() {
   })
 
   const [registerForm, setRegisterForm] = useState(initialRegisterForm)
+
+  function saveToken(token) {
+    if (!token) {
+      return
+    }
+
+    localStorage.setItem(TOKEN_STORAGE_KEY, token)
+  }
+
+  function getAuthorizationHeader() {
+    const token = localStorage.getItem(TOKEN_STORAGE_KEY)
+    return token ? { Authorization: `Bearer ${token}` } : {}
+  }
+
+  async function verifyProtectedSession(userId) {
+    if (!userId) {
+      return
+    }
+
+    try {
+      await fetch(`${API_ROOT_URL}/users/${userId}`, {
+        method: 'GET',
+        headers: {
+          ...getAuthorizationHeader(),
+        },
+      })
+    } catch {
+      // Do not leak token state in UI.
+    }
+  }
+
+  const filteredCountries = useMemo(() => {
+    const keyword = countrySearch.trim().toLowerCase()
+    if (!keyword) {
+      return countryOptions
+    }
+
+    return countryOptions.filter((country) =>
+      country.toLowerCase().includes(keyword)
+    )
+  }, [countryOptions, countrySearch])
+
+  useEffect(() => {
+    let isMounted = true
+
+    async function loadCountries() {
+      try {
+        const response = await fetch(`${API_BASE_URL}/countries`)
+        const data = await response.json()
+        if (!response.ok || !Array.isArray(data.countries)) {
+          return
+        }
+
+        if (isMounted) {
+          setCountryOptions(data.countries)
+        }
+      } catch {
+        // Keep local fallback list if backend is unavailable.
+      }
+    }
+
+    loadCountries()
+
+    return () => {
+      isMounted = false
+    }
+  }, [])
 
   function updateLoginField(field) {
     return (event) => {
@@ -67,6 +152,7 @@ function AuthForm() {
     setMode('login')
     setLoginForm((prev) => ({ ...prev, email: registerForm.email }))
     setRegisterForm(initialRegisterForm)
+    setCountrySearch('')
   }
 
   async function handleLoginSubmit(event) {
@@ -90,6 +176,9 @@ function AuthForm() {
       setMessage(data.message || 'Login failed')
       return
     }
+
+    saveToken(data.token)
+    await verifyProtectedSession(data?.user?._id)
 
     setMessage('Login successful')
   }
@@ -173,12 +262,25 @@ function AuthForm() {
             </label>
             <label>
               Country
-              <input
-                type="text"
-                placeholder="Country"
-                value={registerForm.country}
-                onChange={updateRegisterField('country')}
-              />
+              <div className="country-picker">
+                <input
+                  type="text"
+                  placeholder="Search country"
+                  value={countrySearch}
+                  onChange={(event) => setCountrySearch(event.target.value)}
+                />
+                <select
+                  value={registerForm.country}
+                  onChange={updateRegisterField('country')}
+                >
+                  <option value="">Select country</option>
+                  {filteredCountries.map((country) => (
+                    <option key={country} value={country}>
+                      {country}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </label>
             <label>
               Password
