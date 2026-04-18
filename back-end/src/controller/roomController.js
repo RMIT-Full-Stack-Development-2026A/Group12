@@ -1,8 +1,12 @@
 const GameRoom = require('../models/gameRoom');
 const GameSession = require('../models/gameSession');
+const { getIO } = require('../socket');
+const { createBoard, placeMarker, getGameStatus } = require('../utils/board');
 
 const ALLOWED_MARKERS = ['X', 'O', 'A', 'B', '△', '○'];
 const ALLOWED_BOARD_SIZES = [3, 10, 15];
+const ALLOWED_GAME_MODES = ['LOCAL', 'SINGLE', 'ONLINE'];
+const ALLOWED_AI_LEVELS = ['easy', 'medium', 'hard'];
 
 const generateRoomCode = (length = 6) => {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -28,16 +32,22 @@ const generateUniqueRoomCode = async () => {
   return roomCode;
 };
 
-// CREATE ROOM
 const createRoomController = async (req, res) => {
   try {
-    const userId = req.user?.id || req.body.userId || req.body.userId;
-    const { marker, boardSize } = req.body;
+    const userId = req.body.userId;
+    const { gameMode, marker, boardSize, aiLevel } = req.body;
 
     if (!userId) {
       return res.status(401).json({
         success: false,
-        message: 'Unauthorized'
+        message: 'userId is required'
+      });
+    }
+
+    if (!ALLOWED_GAME_MODES.includes(gameMode)) {
+      return res.status(400).json({
+        success: false,
+        message: 'gameMode must be LOCAL, SINGLE, or ONLINE'
       });
     }
 
@@ -55,6 +65,70 @@ const createRoomController = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Board size must be 3, 10, or 15'
+      });
+    }
+
+    if (gameMode === 'SINGLE') {
+      if (!ALLOWED_AI_LEVELS.includes(aiLevel || 'easy')) {
+        return res.status(400).json({
+          success: false,
+          message: 'aiLevel must be easy, medium, or hard'
+        });
+      }
+
+      const botMarker =
+        ALLOWED_MARKERS.find((item) => item !== normalizedMarker) || 'O';
+
+      const session = await GameSession.create({
+        player1Id: userId,
+        player2Id: null,
+        player1Marker: normalizedMarker,
+        player2Marker: botMarker,
+        aiLevel: aiLevel || 'easy',
+        boardSize: normalizedBoardSize,
+        gameType: 'SINGLE',
+        board: createBoard(normalizedBoardSize),
+        currentTurn: normalizedMarker,
+        status: 'PLAYING',
+        winner: null,
+        moves: [],
+        result: null,
+        startTime: new Date(),
+        endTime: null
+      });
+
+      return res.status(201).json({
+        success: true,
+        message: 'Single game created successfully',
+        data: session
+      });
+    }
+
+    if (gameMode === 'LOCAL') {
+      const secondMarker =
+        ALLOWED_MARKERS.find((item) => item !== normalizedMarker) || 'O';
+
+      const session = await GameSession.create({
+        player1Id: userId,
+        player2Id: null,
+        player1Marker: normalizedMarker,
+        player2Marker: secondMarker,
+        boardSize: normalizedBoardSize,
+        gameType: 'LOCAL',
+        board: createBoard(normalizedBoardSize),
+        currentTurn: normalizedMarker,
+        status: 'PLAYING',
+        winner: null,
+        moves: [],
+        result: null,
+        startTime: new Date(),
+        endTime: null
+      });
+
+      return res.status(201).json({
+        success: true,
+        message: 'Local game created successfully',
+        data: session
       });
     }
 
@@ -80,14 +154,18 @@ const createRoomController = async (req, res) => {
     const session = await GameSession.create({
       player1Id: userId,
       player2Id: null,
+      player1Marker: normalizedMarker,
+      player2Marker: null,
       boardSize: normalizedBoardSize,
       gameType: 'ONLINE',
+      board: createBoard(normalizedBoardSize),
+      currentTurn: normalizedMarker,
+      status: 'WAITING',
+      winner: null,
       moves: [],
       result: null,
       startTime: new Date(),
-      endTime: null,
-      player1Marker: normalizedMarker,
-      player2Marker: null
+      endTime: null
     });
 
     return res.status(201).json({
@@ -107,17 +185,16 @@ const createRoomController = async (req, res) => {
   }
 };
 
-// JOIN ROOM
 const joinRoomController = async (req, res) => {
   try {
-    const userId = req.user?.id || req.body.userId;
+    const userId = req.body.userId;
     const { roomCode } = req.params;
     const { marker } = req.body;
 
     if (!userId) {
       return res.status(401).json({
         success: false,
-        message: 'Unauthorized'
+        message: 'userId is required'
       });
     }
 
@@ -195,6 +272,9 @@ const joinRoomController = async (req, res) => {
       await session.save();
     }
 
+    const io = getIO();
+    io.to(roomCode).emit('room_updated', room);
+
     return res.status(200).json({
       success: true,
       message: 'Joined room successfully',
@@ -208,7 +288,6 @@ const joinRoomController = async (req, res) => {
   }
 };
 
-// GET ROOM
 const getRoomController = async (req, res) => {
   try {
     const { roomCode } = req.params;
@@ -237,16 +316,15 @@ const getRoomController = async (req, res) => {
   }
 };
 
-// START ROOM
 const startRoomController = async (req, res) => {
   try {
-    const userId = req.user?.id || req.body.userId;
+    const userId = req.body.userId;
     const { roomCode } = req.params;
 
     if (!userId) {
       return res.status(401).json({
         success: false,
-        message: 'Unauthorized'
+        message: 'userId is required'
       });
     }
 
@@ -267,6 +345,7 @@ const startRoomController = async (req, res) => {
     }
 
     const hostId = String(room.players[0].userId);
+
     if (String(userId) !== hostId) {
       return res.status(403).json({
         success: false,
@@ -281,6 +360,21 @@ const startRoomController = async (req, res) => {
 
     await room.save();
 
+    const session = await GameSession.findOne({
+      gameType: 'ONLINE',
+      player1Id: room.players[0].userId,
+      endTime: null
+    }).sort({ createdAt: -1 });
+
+    if (session) {
+      session.status = 'PLAYING';
+      await session.save();
+    }
+
+    const io = getIO();
+    io.to(roomCode).emit('room_started', room);
+    io.to(roomCode).emit('room_updated', room);
+
     return res.status(200).json({
       success: true,
       message: 'Game started',
@@ -294,9 +388,114 @@ const startRoomController = async (req, res) => {
   }
 };
 
+const makeMoveController = async (req, res) => {
+  try {
+    const { sessionId, row, col, marker } = req.body;
+
+    if (!sessionId || row === undefined || col === undefined || !marker) {
+      return res.status(400).json({
+        success: false,
+        message: 'sessionId, row, col, and marker are required'
+      });
+    }
+
+    const session = await GameSession.findById(sessionId);
+
+    if (!session) {
+      return res.status(404).json({
+        success: false,
+        message: 'Session not found'
+      });
+    }
+
+    if (!session.board) {
+      return res.status(400).json({
+        success: false,
+        message: 'Board has not been initialized'
+      });
+    }
+
+    if (session.status === 'WIN' || session.status === 'DRAW' || session.status === 'FINISHED') {
+      return res.status(400).json({
+        success: false,
+        message: 'Game already finished'
+      });
+    }
+
+    if (session.currentTurn !== marker) {
+      return res.status(400).json({
+        success: false,
+        message: 'Not your turn'
+      });
+    }
+
+    const nextBoard = session.board.map((boardRow) => [...boardRow]);
+
+    try {
+      placeMarker(nextBoard, Number(row), Number(col), marker);
+    } catch (placeError) {
+      return res.status(400).json({
+        success: false,
+        message: placeError.message || 'Invalid move'
+      });
+    }
+
+    const nextMoves = [
+      ...session.moves,
+      {
+        moveNumber: session.moves.length + 1,
+        player: marker,
+        position: `${row},${col}`,
+        timestamp: new Date()
+      }
+    ];
+
+    const gameStatus = getGameStatus(nextBoard, Number(row), Number(col));
+
+    session.board = nextBoard;
+    session.moves = nextMoves;
+
+    if (gameStatus.status === 'WIN') {
+      session.status = 'WIN';
+      session.winner = gameStatus.winner;
+      session.result =
+        marker === session.player1Marker ? 'PLAYER1_WIN' : 'PLAYER2_WIN';
+      session.endTime = new Date();
+    } else if (gameStatus.status === 'DRAW') {
+      session.status = 'DRAW';
+      session.winner = null;
+      session.result = 'DRAW';
+      session.endTime = new Date();
+    } else {
+      session.status = 'PLAYING';
+      session.currentTurn =
+        marker === session.player1Marker
+          ? session.player2Marker || session.player1Marker
+          : session.player1Marker;
+    }
+
+    await session.save();
+
+    const io = getIO();
+    io.emit(`session_updated:${session._id}`, session);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Move played successfully',
+      data: session
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message || 'Make move failed'
+    });
+  }
+};
+
 module.exports = {
   createRoomController,
   joinRoomController,
   getRoomController,
-  startRoomController
+  startRoomController,
+  makeMoveController
 };

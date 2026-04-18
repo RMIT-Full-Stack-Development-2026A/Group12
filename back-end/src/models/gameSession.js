@@ -63,6 +63,24 @@ player2Marker: {
     type: Date,
     default: null
   },
+  board: {
+  type: [[String]],
+  default: null
+},
+currentTurn: {
+  type: String,
+  enum: ['X', 'O', 'A', 'B', '△', '○'],
+  default: null
+},
+status: {
+  type: String,
+  enum: ['WAITING', 'PLAYING', 'WIN', 'DRAW', 'FINISHED'],
+  default: 'WAITING'
+},
+winner: {
+  type: String,
+  default: null
+}
 }, { timestamps: true });
 
 module.exports = mongoose.model('GameSession', GameSessionSchema);

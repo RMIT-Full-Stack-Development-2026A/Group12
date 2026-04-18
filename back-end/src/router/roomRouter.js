@@ -5,10 +5,11 @@ const {
   createRoomController,
   joinRoomController,
   getRoomController,
-  startRoomController
+  startRoomController,
+  makeMoveController
 } = require('../controller/roomController');
 
-// Create room
+// Create room / game
 router.post('/create', createRoomController);
 
 // Join room
@@ -17,7 +18,10 @@ router.post('/join/:roomCode', joinRoomController);
 // Get room info
 router.get('/:roomCode', getRoomController);
 
-// Start game
+// Start online room
 router.post('/:roomCode/start', startRoomController);
+
+// Make move
+router.post('/move', makeMoveController);
 
 module.exports = router;

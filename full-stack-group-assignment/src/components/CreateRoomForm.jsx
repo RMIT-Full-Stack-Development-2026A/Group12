@@ -1,5 +1,7 @@
-import { useMemo, useState } from 'react';
-import { createGame, joinRoom } from '../services/roomService';
+import { useEffect, useMemo, useState } from 'react';
+import { createGame, joinRoom, startRoom } from '../services/roomService';
+import socket from '../socket';
+import GameBoard from '../components/GameBoard';
 
 const MARKERS = ['X', 'O', 'A', 'B', '△', '○'];
 const BOARD_SIZES = [3, 10, 15];
@@ -12,8 +14,10 @@ function CreateRoomForm({ currentUser }) {
 
   const [loading, setLoading] = useState(false);
   const [joining, setJoining] = useState(false);
+  const [starting, setStarting] = useState(false);
   const [error, setError] = useState('');
   const [resultData, setResultData] = useState(null);
+  const [showBoard, setShowBoard] = useState(false);
 
   const [joinRoomCode, setJoinRoomCode] = useState('');
   const [joinMarker, setJoinMarker] = useState('');
@@ -28,8 +32,18 @@ function CreateRoomForm({ currentUser }) {
     ? `http://localhost:5173/join-room/${roomCode}`
     : '';
 
-  const isOnlineWaiting = gameMode === 'ONLINE' && !!roomCode;
-  const roomData = resultData?.data?.room || resultData?.data;
+  const isOnlineWaiting = gameMode === 'ONLINE' && !!roomCode && !showBoard;
+  const roomData = resultData?.data?.room || null;
+
+  const getPlayerUserId = (player) => {
+    if (!player?.userId) return '';
+    if (typeof player.userId === 'string') return player.userId;
+    return player.userId._id || '';
+  };
+
+  const hostUserId = getPlayerUserId(roomData?.players?.[0]);
+  const isHost = !!hostUserId && String(currentUserId) === String(hostUserId);
+  const hasTwoPlayers = (roomData?.players?.length || 0) >= 2;
 
   const usedMarkers = useMemo(() => {
     const players = resultData?.data?.room?.players || [];
@@ -37,6 +51,56 @@ function CreateRoomForm({ currentUser }) {
   }, [resultData]);
 
   const availableJoinMarkers = MARKERS.filter((item) => !usedMarkers.includes(item));
+
+  const extractRoomCode = (value) => {
+    const trimmed = value.trim();
+
+    if (!trimmed) return '';
+
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+      const parts = trimmed.split('/').filter(Boolean);
+      return parts[parts.length - 1] || '';
+    }
+
+    return trimmed;
+  };
+
+  useEffect(() => {
+    if (!roomCode) return;
+
+    socket.emit('join_room_channel', roomCode);
+
+    const handleRoomUpdated = (updatedRoom) => {
+      setResultData((prev) => ({
+        ...prev,
+        data: {
+          ...(prev?.data || {}),
+          room: updatedRoom
+        }
+      }));
+    };
+
+    const handleRoomStarted = (startedRoom) => {
+      setResultData((prev) => ({
+        ...prev,
+        data: {
+          ...(prev?.data || {}),
+          room: startedRoom
+        }
+      }));
+
+      setShowBoard(true);
+    };
+
+    socket.on('room_updated', handleRoomUpdated);
+    socket.on('room_started', handleRoomStarted);
+
+    return () => {
+      socket.off('room_updated', handleRoomUpdated);
+      socket.off('room_started', handleRoomStarted);
+      socket.emit('leave_room_channel', roomCode);
+    };
+  }, [roomCode]);
 
   const handlePlay = async (e) => {
     e.preventDefault();
@@ -55,6 +119,7 @@ function CreateRoomForm({ currentUser }) {
       setLoading(true);
       setError('');
       setResultData(null);
+      setShowBoard(false);
 
       const data = await createGame({
         userId: currentUserId,
@@ -65,6 +130,10 @@ function CreateRoomForm({ currentUser }) {
       });
 
       setResultData(data);
+
+      if (gameMode === 'LOCAL' || gameMode === 'SINGLE') {
+        setShowBoard(true);
+      }
     } catch (err) {
       setError(err.message || 'Create game failed');
     } finally {
@@ -94,62 +163,168 @@ function CreateRoomForm({ currentUser }) {
           text: 'Join my room',
           url: roomLink
         });
-      } catch (error) {
-        console.log(error);
+      } catch (shareError) {
+        console.log(shareError);
       }
     } else {
       await navigator.clipboard.writeText(roomLink);
       alert('Share is not supported. Link copied instead.');
     }
   };
-  const extractRoomCode = (value) => {
-  const trimmed = value.trim();
 
-  if (!trimmed) return '';
+  const handleJoinRoom = async (codeOverride) => {
+    if (!currentUserId) {
+      setError('Cannot find current user ID. Please login again.');
+      return;
+    }
 
-  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
-    const parts = trimmed.split('/');
-    return parts[parts.length - 1] || '';
-  }
+    const parsedRoomCode = extractRoomCode(codeOverride || joinRoomCode);
 
-  return trimmed;
+    if (!parsedRoomCode) {
+      setError('Please enter a room code or room link');
+      return;
+    }
+
+    if (!joinMarker) {
+      setError('Please select a marker to join');
+      return;
+    }
+
+    try {
+      setJoining(true);
+      setError('');
+
+      const data = await joinRoom({
+        roomCode: parsedRoomCode,
+        userId: currentUserId,
+        marker: joinMarker
+      });
+
+      setResultData((prev) => ({
+        ...prev,
+        data: {
+          ...(prev?.data || {}),
+          room: data.data
+        }
+      }));
+
+      setGameMode('ONLINE');
+      setShowBoard(false);
+      alert(data.message || 'Joined room successfully');
+    } catch (err) {
+      setError(err.message || 'Join room failed');
+    } finally {
+      setJoining(false);
+    }
+  };
+
+  const handleStartRoom = async () => {
+    if (!roomCode) {
+      setError('Room code not found');
+      return;
+    }
+
+    if (!isHost) {
+      setError('Only host can start the game');
+      return;
+    }
+
+    try {
+      setStarting(true);
+      setError('');
+
+      const data = await startRoom({
+        roomCode,
+        userId: currentUserId
+      });
+
+      setResultData((prev) => ({
+        ...prev,
+        data: {
+          ...(prev?.data || {}),
+          room: data.data
+        }
+      }));
+
+      setShowBoard(true);
+      alert(data.message || 'Game started');
+    } catch (err) {
+      setError(err.message || 'Start room failed');
+    } finally {
+      setStarting(false);
+    }
+  };
+  const resetToCreateGame = () => {
+  setShowBoard(false);
+  setResultData(null);
+  setError('');
+  setJoining(false);
+  setStarting(false);
+  setLoading(false);
+  setJoinRoomCode('');
+  setJoinMarker('');
+  setGameMode('');
+  setMarker('');
+  setBoardSize('');
+  setAiLevel('easy');
 };
 
- const handleJoinRoom = async () => {
-  if (!currentUserId) {
-    setError('Cannot find current user ID. Please login again.');
+const handlePlayAgain = async () => {
+  if (!gameMode || !marker || !boardSize || !currentUserId) {
+    resetToCreateGame();
     return;
   }
 
-  const parsedRoomCode = extractRoomCode(joinRoomCode);
-
-  if (!parsedRoomCode) {
-    setError('Please enter a room code or room link');
-    return;
-  }
-
-  if (!joinMarker) {
-    setError('Please select a marker to join');
+  if (gameMode === 'ONLINE') {
+    resetToCreateGame();
     return;
   }
 
   try {
-    setJoining(true);
+    setLoading(true);
     setError('');
+    setShowBoard(false);
 
-    const data = await joinRoom({
-      roomCode: parsedRoomCode,
+    const data = await createGame({
       userId: currentUserId,
-      marker: joinMarker
+      gameMode,
+      marker,
+      boardSize: Number(boardSize),
+      aiLevel
     });
 
-    alert(data.message || 'Joined room successfully');
+    setResultData(data);
+    setShowBoard(true);
   } catch (err) {
-    setError(err.message || 'Join room failed');
+    setError(err.message || 'Create game failed');
+    setShowBoard(false);
   } finally {
-    setJoining(false);
+    setLoading(false);
   }
 };
+
+  if (showBoard) {
+    const finalBoardSize =
+      roomData?.boardSize || resultData?.data?.boardSize || Number(boardSize) || 10;
+
+    return (
+      <div style={styles.page}>
+        <div style={styles.card}>
+        <GameBoard
+          boardSize={finalBoardSize}
+          gameMode={gameMode}
+          marker={marker}
+          roomCode={roomCode}
+          currentUser={currentUser}
+          roomData={roomData}
+          resultData={resultData}
+          onBackToCreate={resetToCreateGame}
+          onPlayAgain={handlePlayAgain}
+/>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={styles.page}>
@@ -241,7 +416,7 @@ function CreateRoomForm({ currentUser }) {
               <p>Game Mode: {gameMode}</p>
               <p>Board Size: {resultData.data?.boardSize}</p>
               <p>Marker: {marker}</p>
-              <p>Session ID: {resultData.data?.session?._id || resultData.data?._id || 'N/A'}</p>
+              <p>Session ID: {resultData.data?._id || 'N/A'}</p>
             </div>
           )}
 
@@ -251,7 +426,7 @@ function CreateRoomForm({ currentUser }) {
             <div style={styles.joinRow}>
               <input
                 type="text"
-                placeholder="Enter room code"
+                placeholder="Enter room code or paste room link"
                 value={joinRoomCode}
                 onChange={(e) => setJoinRoomCode(e.target.value)}
                 style={styles.userIdInput}
@@ -276,7 +451,7 @@ function CreateRoomForm({ currentUser }) {
 
             <button
               type="button"
-              onClick={handleJoinRoom}
+              onClick={() => handleJoinRoom()}
               disabled={joining}
               style={styles.playButton}
             >
@@ -292,7 +467,9 @@ function CreateRoomForm({ currentUser }) {
               <span>Player 1</span>
             </div>
             <div style={styles.playerBox}>
-              <span>Player 2: Await</span>
+              <span>
+                {hasTwoPlayers ? 'Player 2 joined' : 'Player 2: Await'}
+              </span>
               <span style={styles.playerIcon}>👤</span>
             </div>
           </div>
@@ -325,66 +502,60 @@ function CreateRoomForm({ currentUser }) {
             <p><strong>Board Size:</strong> {roomData?.boardSize}</p>
             <p><strong>Your Marker:</strong> {marker}</p>
             <p><strong>Session ID:</strong> {resultData?.data?.session?._id || 'N/A'}</p>
+            <p><strong>Role:</strong> {isHost ? 'Host' : 'Guest'}</p>
           </div>
 
-          <div style={styles.resultBox}>
-            <p><strong>User 2 Join This Room</strong></p>
-            <p>Share the link above or send this room code:</p>
-            <p><strong>{roomCode}</strong></p>
+          {!hasTwoPlayers && (
+            <div style={styles.resultBox}>
+              <p><strong>User 2 Join This Room</strong></p>
+              <p>Share the link above or send this room code:</p>
+              <p><strong>{roomCode}</strong></p>
 
-            <div style={styles.row}>
-              <div style={styles.labelBox}>Join marker :</div>
-              <select
-                value={joinMarker}
-                onChange={(e) => setJoinMarker(e.target.value)}
-                style={styles.select}
+              <div style={styles.row}>
+                <div style={styles.labelBox}>Join marker :</div>
+                <select
+                  value={joinMarker}
+                  onChange={(e) => setJoinMarker(e.target.value)}
+                  style={styles.select}
+                >
+                  <option value="">Select marker</option>
+                  {availableJoinMarkers.map((item) => (
+                    <option key={item} value={item}>
+                      {item}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => handleJoinRoom(roomCode)}
+                disabled={joining}
+                style={styles.playButton}
               >
-                <option value="">Select marker</option>
-                {availableJoinMarkers.map((item) => (
-                  <option key={item} value={item}>
-                    {item}
-                  </option>
-                ))}
-              </select>
+                {joining ? 'Joining...' : 'Join This Room'}
+              </button>
             </div>
-
-            <button
-              type="button"
-              onClick={async () => {
-                try {
-                  if (!joinMarker) {
-                    setError('Please select a marker for user 2');
-                    return;
-                  }
-
-                  setJoining(true);
-                  setError('');
-
-                  const data = await joinRoom({
-                    roomCode,
-                    userId: currentUserId,
-                    marker: joinMarker
-                  });
-
-                  alert(data.message || 'Joined room successfully');
-                } catch (err) {
-                  setError(err.message || 'Join room failed');
-                } finally {
-                  setJoining(false);
-                }
-              }}
-              disabled={joining}
-              style={styles.playButton}
-            >
-              {joining ? 'Joining...' : 'Join This Room'}
-            </button>
-          </div>
+          )}
 
           {error && <p style={styles.error}>{error}</p>}
 
-          <button type="button" style={styles.startButton} disabled>
-            Start
-          </button>
+          {isHost ? (
+            <button
+              type="button"
+              style={{
+                ...styles.startButton,
+                cursor: hasTwoPlayers ? 'pointer' : 'not-allowed',
+                backgroundColor: hasTwoPlayers ? '#fff' : '#f0f0f0'
+              }}
+              disabled={!hasTwoPlayers || starting}
+              onClick={handleStartRoom}
+            >
+              {starting ? 'Starting...' : 'Start'}
+            </button>
+          ) : (
+            <p style={styles.waitingText}>Waiting for host to start</p>
+          )}
         </div>
       )}
     </div>
@@ -546,8 +717,13 @@ const styles = {
     padding: '14px 24px',
     border: '2px solid #888',
     borderRadius: '6px',
-    backgroundColor: '#f0f0f0',
-    cursor: 'not-allowed'
+    backgroundColor: '#f0f0f0'
+  },
+  waitingText: {
+    textAlign: 'center',
+    fontWeight: '600',
+    color: '#555',
+    marginTop: '12px'
   }
 };
 
