@@ -1,12 +1,13 @@
-import mongoose from "mongoose";
+const mongoose = require("mongoose");
 
 const BotSchema = new mongoose.Schema({
     name: String,
     difficulty: {
         type: String,
-        enum: ['EASY', 'MEDIUM', 'HARD']
+        enum: ['easy', 'medium', 'hard'],
+        required: true
     }
 });
 
 const Bot = mongoose.model("Bot", BotSchema);
-export default Bot;
+module.exports = Bot;

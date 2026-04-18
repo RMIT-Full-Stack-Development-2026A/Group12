@@ -1,35 +1,3 @@
-// import { connectToDatabase } from "./db.js";
-// import User from "../models/user.js";
-// import GameRoom from "../models/gameRoom.js";
-// import GameSession from "../models/gameSession.js";
-// import Transaction from "../models/transaction.js";
-// import Wallet from "../models/wallet.js";
-// import Subscription from "../models/subscription.js";
-// import RefreshToken from "../models/refreshToken.js";
-
-
-// async function initDB() {
-//   await connectToDatabase();
-//   await User.create({ username: "init" });
-//   await GameRoom.create({ roomCode: "INIT_ROOM" });
-//   await GameSession.create({});
-//   await Transaction.create({});
-//   await Wallet.create({});
-//   await Subscription.create({});
-//   await RefreshToken.create({});
-
-//   console.log("All collections created");
-//   process.exit();
-
-// }
-
-// initDB().catch((error) => {
-//   console.error("Error initializing database:", error);
-//   process.exit(1);
-// });
-
-
-
 import mongoose from "mongoose";
 import { connectToDatabase } from "./db.js";
 import User from "../models/user.js";

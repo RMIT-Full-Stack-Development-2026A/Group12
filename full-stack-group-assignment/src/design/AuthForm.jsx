@@ -27,7 +27,7 @@ const initialRegisterForm = {
   confirmPassword: '',
 }
 
-function AuthForm() {
+function AuthForm({ onLoginSuccess }) {
   const [mode, setMode] = useState('login')
   const [message, setMessage] = useState('')
   const [countrySearch, setCountrySearch] = useState('')
@@ -180,6 +180,9 @@ function AuthForm() {
     saveToken(data.token)
     await verifyProtectedSession(data?.user?._id)
 
+    if (onLoginSuccess) {
+      onLoginSuccess(data.user)
+    }
     setMessage('Login successful')
   }
 

@@ -1,4 +1,4 @@
-import mongoose from 'mongoose';
+const mongoose = require('mongoose');
 
 const WalletSchema = new mongoose.Schema({
   userId: mongoose.Schema.Types.ObjectId,
@@ -8,4 +8,4 @@ const WalletSchema = new mongoose.Schema({
   }
 });
 
-export default mongoose.model('Wallet', WalletSchema);
+module.exports = mongoose.model('Wallet', WalletSchema);
