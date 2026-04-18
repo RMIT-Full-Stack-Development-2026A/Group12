@@ -10,18 +10,18 @@
  */
 
 const express = require('express');
-const userController = require('./user.controller');
+const userController = require('../controller/userProfileController');
 
 let authMiddleware;
 if (process.env.NODE_ENV === 'test' || process.env.USE_STUBS === 'true') {
   try {
-    authMiddleware = require('../../middleware/auth.middleware');
+    authMiddleware = require('../middleware/jwtAuth');
   } catch {
-    authMiddleware = require('../../_stubs/auth.middleware.stub');
+    authMiddleware = require('../_stubs/auth.middleware.stub');
     console.warn('[STUB ACTIVE]', __filename);
   }
 } else {
-  authMiddleware = require('../../middleware/auth.middleware');
+  authMiddleware = require('../middleware/jwtAuth');
 }
 
 const authenticate = authMiddleware.authenticate || authMiddleware.authenticateJWT;

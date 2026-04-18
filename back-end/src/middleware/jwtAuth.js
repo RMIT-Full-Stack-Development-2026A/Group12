@@ -3,6 +3,7 @@
 // Feature: Edit Profile (Requirement 3.1.1, 3.2.1)
 
 const jwt = require('jsonwebtoken');
+const { JWT_SECRET } = require('../config/jwtConfig');
 
 let User;
 try {
@@ -31,7 +32,7 @@ async function authenticateJWT(req, res, next) {
       return res.status(401).json({ success: false, error: 'Unauthorized' });
     }
 
-    const payload = jwt.verify(token, process.env.JWT_SECRET);
+    const payload = jwt.verify(token, JWT_SECRET);
     const tokenUserId = payload.userId || payload.user_id || payload.sub;
 
     if (!tokenUserId) {
@@ -79,6 +80,8 @@ function authorizeOwnership(req, res, next) {
 }
 
 module.exports = {
+  authenticate: authenticateJWT,
+  checkOwnership: authorizeOwnership,
   authenticateJWT,
   authorizeOwnership
 };

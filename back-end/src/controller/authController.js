@@ -1,5 +1,8 @@
 const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 const User = require('../models/user');
+const { COUNTRY_LIST } = require('../constants/enums');
+const { JWT_SECRET, JWT_EXPIRES_IN } = require('../config/jwtConfig');
 
 const MAX_FAILED_LOGINS = 3;
 const LOCK_DURATION_MS = 2 * 60 * 1000;
@@ -43,25 +46,37 @@ async function register(req, res) {
       walletBalance
     } = req.body;
 
-    const normalizedEmail = normalizeEmail(email);
+    if (isActive !== undefined || isPremium !== undefined || walletBalance !== undefined) {
+      return res.status(400).json({
+        message: 'manual set of premium/status/balance is not allowed at signup'
+      });
+    }
 
-    const existingUser = await User.findOne({ email: normalizedEmail });
-    if (existingUser) {
+    const normalizedEmail = normalizeEmail(email);
+    const normalizedUsername = String(username).trim();
+
+    const [existingEmail, existingUsername] = await Promise.all([
+      User.findOne({ email: normalizedEmail }),
+      User.findOne({ username: normalizedUsername })
+    ]);
+
+    if (existingEmail) {
       return res.status(409).json({ message: 'Email already exists' });
+    }
+
+    if (existingUsername) {
+      return res.status(409).json({ message: 'Username already exists' });
     }
 
     const passwordHash = await bcrypt.hash(password, 12);
 
     const user = await User.create({
-      username,
+      username: normalizedUsername,
       email: normalizedEmail,
       passwordHash,
       country,
       avatarUrl,
       role: 'PLAYER',
-      isActive,
-      isPremium,
-      walletBalance,
       failedLogins: 0,
       lockUntil: null
     });
@@ -71,6 +86,16 @@ async function register(req, res) {
       user: getSafeUser(user)
     });
   } catch (error) {
+    if (error && error.code === 11000) {
+      if (error.keyPattern && error.keyPattern.email) {
+        return res.status(409).json({ message: 'Email already exists' });
+      }
+
+      if (error.keyPattern && error.keyPattern.username) {
+        return res.status(409).json({ message: 'Username already exists' });
+      }
+    }
+
     return res.status(500).json({ message: 'Registration failed', error: error.message });
   }
 }
@@ -89,6 +114,12 @@ async function login(req, res) {
     });
     if (!user) {
       return res.status(401).json({ message: 'Invalid username/email or password' });
+    }
+
+    if (user.isActive === false) {
+      return res.status(403).json({
+        message: 'Your account has been deactivated. Please contact support.'
+      });
     }
 
     const now = new Date();
@@ -133,8 +164,25 @@ async function login(req, res) {
     user.lockUntil = null;
     await user.save();
 
+    if (!JWT_SECRET) {
+      return res.status(500).json({
+        message: 'Login failed',
+        error: 'JWT secret is not configured'
+      });
+    }
+
+    const token = jwt.sign(
+      {
+        userId: user._id.toString(),
+        role: user.role
+      },
+      JWT_SECRET,
+      { expiresIn: JWT_EXPIRES_IN }
+    );
+
     return res.status(200).json({
       message: 'Login successful',
+      token,
       user: getSafeUser(user)
     });
   } catch (error) {
@@ -142,7 +190,12 @@ async function login(req, res) {
   }
 }
 
+function getCountryList(req, res) {
+  return res.status(200).json({ countries: COUNTRY_LIST });
+}
+
 module.exports = {
   register,
-  login
+  login,
+  getCountryList
 };

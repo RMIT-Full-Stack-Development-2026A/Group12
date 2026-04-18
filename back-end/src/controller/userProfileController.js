@@ -15,27 +15,27 @@ const bcrypt = require('bcryptjs');
 const multer = require('multer');
 const sharp = require('sharp');
 const mongoose = require('mongoose');
-const PlayerPreference = require('../preference/preference.model');
+const PlayerPreference = require('../models/playerPreference');
 const {
   COUNTRY_LIST,
   MARKER_OPTIONS,
   BOARD_STYLES,
   BOARD_SIZES,
   AI_BOT_NAMES
-} = require('../../constants/enums');
+} = require('../constants/enums');
 
 let User;
 try {
-  User = require('../../models/user.model');
+  User = require('../models/user.model');
 } catch {
-  User = require('../../models/user');
+  User = require('../models/user');
 }
 
 let GameSession;
 try {
-  GameSession = require('../../models/gameSession.model');
+  GameSession = require('../models/gameSession.model');
 } catch {
-  GameSession = require('../../models/gameSession');
+  GameSession = require('../models/gameSession');
 }
 
 const SALT_ROUNDS = 12;
@@ -696,7 +696,7 @@ async function updateAvatarByUserId(userId, file) {
       .jpeg({ quality: 80 })
       .toBuffer();
 
-    const avatarsDir = path.resolve(__dirname, '../../..', 'uploads', 'avatars');
+    const avatarsDir = path.resolve(__dirname, '../..', 'uploads', 'avatars');
     await fs.mkdir(avatarsDir, { recursive: true });
 
     const fileName = `${userId}.jpg`;

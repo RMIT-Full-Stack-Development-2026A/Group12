@@ -11,7 +11,7 @@
  */
 
 const mongoose = require('mongoose');
-const { BOARD_SIZES, BOARD_STYLES, MARKER_OPTIONS } = require('../../constants/enums');
+const { BOARD_SIZES, BOARD_STYLES, MARKER_OPTIONS } = require('../constants/enums');
 
 const preferenceSchema = new mongoose.Schema(
   {
