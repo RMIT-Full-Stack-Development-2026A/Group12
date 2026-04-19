@@ -1,23 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
 import './AuthForm.css'
 
-const API_BASE_URL = 'http://localhost:5000/api/auth'
-const API_ROOT_URL = 'http://localhost:5000/api'
-const TOKEN_STORAGE_KEY = 'auth_token'
-const FALLBACK_COUNTRIES = [
-  'Vietnam',
-  'Australia',
-  'United States',
-  'United Kingdom',
-  'Canada',
-  'Singapore',
-  'Japan',
-  'South Korea',
-  'India',
-  'Germany',
-  'France',
-  'New Zealand',
-]
+import {
+  API_ROOT_URL,
+  FALLBACK_COUNTRIES,
+  TOKEN_STORAGE_KEY,
+} from '../config/appConfig'
+
+const AUTH_URL = `${API_ROOT_URL}/auth`
 
 const initialRegisterForm = {
   email: '',
@@ -27,10 +17,9 @@ const initialRegisterForm = {
   confirmPassword: '',
 }
 
-function AuthForm({ onLoginSuccess }) {
+function AuthForm({ onAuthSuccess, onClose }) {
   const [mode, setMode] = useState('login')
   const [message, setMessage] = useState('')
-  const [countrySearch, setCountrySearch] = useState('')
   const [countryOptions, setCountryOptions] = useState(FALLBACK_COUNTRIES)
 
   const [loginForm, setLoginForm] = useState({
@@ -39,6 +28,22 @@ function AuthForm({ onLoginSuccess }) {
   })
 
   const [registerForm, setRegisterForm] = useState(initialRegisterForm)
+
+  async function requestJson(url, options) {
+    let response
+    try {
+      response = await fetch(url, options)
+    } catch {
+      return {
+        ok: false,
+        status: 0,
+        data: { message: 'Network error: cannot reach server' },
+      }
+    }
+
+    const data = await response.json().catch(() => ({}))
+    return { ok: response.ok, status: response.status, data }
+  }
 
   function saveToken(token) {
     if (!token) {
@@ -71,32 +76,20 @@ function AuthForm({ onLoginSuccess }) {
   }
 
   const filteredCountries = useMemo(() => {
-    const keyword = countrySearch.trim().toLowerCase()
-    if (!keyword) {
-      return countryOptions
-    }
-
-    return countryOptions.filter((country) =>
-      country.toLowerCase().includes(keyword)
-    )
-  }, [countryOptions, countrySearch])
+    return countryOptions
+  }, [countryOptions])
 
   useEffect(() => {
     let isMounted = true
 
     async function loadCountries() {
-      try {
-        const response = await fetch(`${API_BASE_URL}/countries`)
-        const data = await response.json()
-        if (!response.ok || !Array.isArray(data.countries)) {
-          return
-        }
+      const result = await requestJson(`${AUTH_URL}/countries`)
+      if (!result.ok || !Array.isArray(result.data.countries)) {
+        return
+      }
 
-        if (isMounted) {
-          setCountryOptions(data.countries)
-        }
-      } catch {
-        // Keep local fallback list if backend is unavailable.
+      if (isMounted) {
+        setCountryOptions(result.data.countries)
       }
     }
 
@@ -128,7 +121,7 @@ function AuthForm({ onLoginSuccess }) {
       return
     }
 
-    const response = await fetch(`${API_BASE_URL}/register`, {
+    const result = await requestJson(`${AUTH_URL}/register`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -141,25 +134,56 @@ function AuthForm({ onLoginSuccess }) {
       }),
     })
 
-    const data = await response.json()
-
-    if (!response.ok) {
-      setMessage(data.message || 'Register failed')
+    if (!result.ok) {
+      setMessage(result.data.message || `Register failed (${result.status})`)
       return
     }
 
-    setMessage('Register successful. Please login.')
-    setMode('login')
-    setLoginForm((prev) => ({ ...prev, email: registerForm.email }))
-    setRegisterForm(initialRegisterForm)
-    setCountrySearch('')
+    // Auto-login after register so user lands on Create Room page.
+    const loginResult = await requestJson(`${AUTH_URL}/login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        email: registerForm.email,
+        password: registerForm.password,
+      }),
+    })
+
+    if (!loginResult.ok) {
+      setMessage('Register successful. Please login.')
+      setMode('login')
+      setLoginForm((prev) => ({ ...prev, email: registerForm.email }))
+      setRegisterForm(initialRegisterForm)
+      return
+    }
+
+    const token = loginResult.data?.token
+    const user = loginResult.data?.user
+
+    if (!token || !user) {
+      setMessage('Register successful. Please login.')
+      setMode('login')
+      setLoginForm((prev) => ({ ...prev, email: registerForm.email }))
+      setRegisterForm(initialRegisterForm)
+      return
+    }
+
+    saveToken(token)
+    verifyProtectedSession(user?._id)
+
+    if (onAuthSuccess) {
+      onAuthSuccess(user)
+    }
+    setMessage('Register successful')
   }
 
   async function handleLoginSubmit(event) {
     event.preventDefault()
     setMessage('')
 
-    const response = await fetch(`${API_BASE_URL}/login`, {
+    const result = await requestJson(`${AUTH_URL}/login`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -170,18 +194,24 @@ function AuthForm({ onLoginSuccess }) {
       }),
     })
 
-    const data = await response.json()
-
-    if (!response.ok) {
-      setMessage(data.message || 'Login failed')
+    if (!result.ok) {
+      setMessage(result.data.message || `Login failed (${result.status})`)
       return
     }
 
-    saveToken(data.token)
-    await verifyProtectedSession(data?.user?._id)
+    const token = result.data?.token
+    const user = result.data?.user
 
-    if (onLoginSuccess) {
-      onLoginSuccess(data.user)
+    if (!token || !user) {
+      setMessage('Login failed: server response missing token/user')
+      return
+    }
+
+    saveToken(token)
+    verifyProtectedSession(user?._id)
+
+    if (onAuthSuccess) {
+      onAuthSuccess(user)
     }
     setMessage('Login successful')
   }
@@ -190,7 +220,14 @@ function AuthForm({ onLoginSuccess }) {
     <main className="auth-shell">
       <section className="auth-card">
         <header className="auth-header">
-          <h1>{mode === 'login' ? 'Login' : 'Register'}</h1>
+          <div className="auth-head-row">
+            <h1>{mode === 'login' ? 'Login' : 'Register'}</h1>
+            {onClose ? (
+              <button type="button" className="auth-close" onClick={onClose} aria-label="Close">
+                X
+              </button>
+            ) : null}
+          </div>
           <p className="auth-subtitle">
             {mode === 'login'
               ? 'Sign in with your account details.'
@@ -266,12 +303,6 @@ function AuthForm({ onLoginSuccess }) {
             <label>
               Country
               <div className="country-picker">
-                <input
-                  type="text"
-                  placeholder="Search country"
-                  value={countrySearch}
-                  onChange={(event) => setCountrySearch(event.target.value)}
-                />
                 <select
                   value={registerForm.country}
                   onChange={updateRegisterField('country')}

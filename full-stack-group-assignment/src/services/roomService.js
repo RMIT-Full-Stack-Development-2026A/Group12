@@ -1,4 +1,23 @@
-const API_BASE_URL = 'http://localhost:5000/api/rooms';
+import { API_ROOT_URL } from '../config/appConfig'
+
+const ROOMS_URL = `${API_ROOT_URL}/rooms`
+
+async function postJson(url, body) {
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  })
+
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.message || 'Request failed')
+  }
+
+  return data
+}
 
 export const createGame = async ({
   userId,
@@ -7,88 +26,32 @@ export const createGame = async ({
   boardSize,
   aiLevel = 'easy'
 }) => {
-  const response = await fetch(`${API_BASE_URL}/create`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      userId,
-      gameMode,
-      marker,
-      boardSize,
-      aiLevel
-    })
-  });
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(data.message || 'Failed to create game');
-  }
-
-  return data;
+  return postJson(`${ROOMS_URL}/create`, {
+    userId,
+    gameMode,
+    marker,
+    boardSize,
+    aiLevel,
+  })
 };
 
 export const joinRoom = async ({ roomCode, userId, marker }) => {
-  const response = await fetch(`${API_BASE_URL}/join/${roomCode}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      userId,
-      marker
-    })
-  });
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(data.message || 'Failed to join room');
-  }
-
-  return data;
+  return postJson(`${ROOMS_URL}/join/${roomCode}`, {
+    userId,
+    marker,
+  })
 };
 
 export const startRoom = async ({ roomCode, userId }) => {
-  const response = await fetch(`${API_BASE_URL}/${roomCode}/start`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      userId
-    })
-  });
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(data.message || 'Failed to start room');
-  }
-
-  return data;
+  return postJson(`${ROOMS_URL}/${roomCode}/start`, {
+    userId,
+  })
 };
 export const makeMove = async ({ sessionId, row, col, marker }) => {
-  const response = await fetch(`${API_BASE_URL}/move`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      sessionId,
-      row,
-      col,
-      marker
-    })
-  });
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(data.message || 'Failed to make move');
-  }
-
-  return data;
+  return postJson(`${ROOMS_URL}/move`, {
+    sessionId,
+    row,
+    col,
+    marker,
+  })
 };

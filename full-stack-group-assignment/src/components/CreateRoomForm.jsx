@@ -3,8 +3,7 @@ import { createGame, joinRoom, startRoom } from '../services/roomService';
 import socket from '../socket';
 import GameBoard from '../components/GameBoard';
 
-const MARKERS = ['X', 'O', 'A', 'B', '△', '○'];
-const BOARD_SIZES = [3, 10, 15];
+import { BOARD_SIZES, MARKERS } from '../constants/gameOptions'
 
 function CreateRoomForm({ currentUser }) {
   const [gameMode, setGameMode] = useState('');
@@ -29,7 +28,7 @@ function CreateRoomForm({ currentUser }) {
     resultData?.data?.room?.roomCode || resultData?.data?.roomCode || '';
 
   const roomLink = roomCode
-    ? `http://localhost:5173/join-room/${roomCode}`
+    ? `${window.location.origin}/join-room/${roomCode}`
     : '';
 
   const isOnlineWaiting = gameMode === 'ONLINE' && !!roomCode && !showBoard;

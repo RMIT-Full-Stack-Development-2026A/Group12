@@ -1,7 +1,17 @@
-import CreateRoomForm from '../components/CreateRoomForm';
+import CreateRoomForm from '../components/CreateRoomForm'
 
 function CreateRoomPage({ currentUser }) {
-  return <CreateRoomForm currentUser={currentUser} />;
+  return (
+    <div style={styles.page}>
+      <CreateRoomForm currentUser={currentUser} />
+    </div>
+  )
 }
 
-export default CreateRoomPage;
+const styles = {
+  page: {
+    padding: 18,
+  },
+}
+
+export default CreateRoomPage
