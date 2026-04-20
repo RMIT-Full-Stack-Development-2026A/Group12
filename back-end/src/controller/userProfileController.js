@@ -24,6 +24,12 @@ const {
   AI_BOT_NAMES
 } = require('../constants/enums');
 
+const BOT_NAME_MAP = AI_BOT_NAMES || {
+  easy: 'Easy Bot',
+  medium: 'Medium Bot',
+  hard: 'Hard Bot'
+};
+
 let User;
 try {
   User = require('../models/user.model');
@@ -522,24 +528,61 @@ function buildResultMatch(result, currentUserId) {
     return null;
   }
 
-  if (result === 'win') {
-    return { status: 'finished', winnerId: currentUserId };
-  }
+  const normalized = String(result).toLowerCase();
 
-  if (result === 'lose') {
+  if (normalized === 'win') {
     return {
-      status: 'finished',
-      $expr: {
-        $and: [
-          { $ne: ['$winnerId', null] },
-          { $ne: ['$winnerId', currentUserId] }
-        ]
-      }
+      $or: [
+        { $and: [{ result: 'PLAYER1_WIN' }, { player1Id: currentUserId }] },
+        { $and: [{ result: 'PLAYER2_WIN' }, { player2Id: currentUserId }] },
+        { $and: [{ status: 'FINISHED' }, { winnerId: currentUserId }] }
+      ]
     };
   }
 
-  if (result === 'aborted') {
-    return { status: 'aborted' };
+  if (normalized === 'lose') {
+    return {
+      $or: [
+        { $and: [{ result: 'PLAYER1_WIN' }, { player2Id: currentUserId }] },
+        { $and: [{ result: 'PLAYER2_WIN' }, { player1Id: currentUserId }] },
+        {
+          $and: [
+            { status: 'FINISHED' },
+            {
+              $expr: {
+                $and: [
+                  { $ne: ['$winnerId', null] },
+                  { $ne: ['$winnerId', currentUserId] }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    };
+  }
+
+  if (normalized === 'draw') {
+    return {
+      $or: [
+        { result: 'DRAW' },
+        { status: 'DRAW' },
+        { $and: [{ status: 'FINISHED' }, { winnerId: null }] }
+      ]
+    };
+  }
+
+  if (normalized === 'aborted') {
+    return {
+      $or: [
+        { result: 'ABORT' },
+        { status: 'ABORTED' },
+        { status: 'aborted' },
+        { result: null },
+        { status: 'WAITING' },
+        { status: 'PLAYING' }
+      ]
+    };
   }
 
   return null;
@@ -799,7 +842,7 @@ async function getSessionHistoryByUserId(userId, query = {}) {
     const normalizedGameType = normalizeGameType(session.gameType);
     const opponent =
       normalizedGameType === 'single_player'
-        ? { name: AI_BOT_NAMES[session.aiLevel] || 'Bot', avatarUrl: null }
+        ? { name: BOT_NAME_MAP[session.aiLevel] || 'Bot', avatarUrl: null }
         : { name: session.opponentName || null, avatarUrl: session.opponentAvatarUrl || null };
 
     return {
@@ -810,9 +853,38 @@ async function getSessionHistoryByUserId(userId, query = {}) {
       boardSize: normalizeBoardSize(session.boardSize),
       status: normalizeStatus(session.status, session.result),
       result: computeResult(session, userId),
-      opponent
+      opponent,
+      aiLevel: session.aiLevel || null,
+      moves: Array.isArray(session.moves) ? session.moves : [],
+      player1Marker: session.player1Marker || null,
+      player2Marker: session.player2Marker || null
     };
   });
+}
+
+async function deleteSessionByUserId(userId, sessionId) {
+  if (!mongoose.Types.ObjectId.isValid(sessionId)) {
+    throw createAppError(400, 'Invalid session id');
+  }
+
+  const objectUserId = new mongoose.Types.ObjectId(userId);
+  const objectSessionId = new mongoose.Types.ObjectId(sessionId);
+
+  const session = await GameSession.findOne({
+    _id: objectSessionId,
+    $or: [{ player1Id: objectUserId }, { player2Id: objectUserId }]
+  }).exec();
+
+  if (!session) {
+    throw createAppError(404, 'Session not found');
+  }
+
+  await GameSession.deleteOne({ _id: objectSessionId }).exec();
+
+  return {
+    sessionId,
+    deleted: true
+  };
 }
 
 function handleError(res, error) {
@@ -926,10 +998,24 @@ async function getSessionHistory(req, res) {
   }
 }
 
+async function deleteSession(req, res) {
+  try {
+    const data = await deleteSessionByUserId(req.params.user_id, req.params.session_id);
+    return res.status(200).json({
+      success: true,
+      message: 'Session deleted successfully',
+      data
+    });
+  } catch (error) {
+    return handleError(res, error);
+  }
+}
+
 module.exports = {
   getProfile,
   updateProfile,
   uploadAvatarMiddleware,
   updateAvatar,
-  getSessionHistory
+  getSessionHistory,
+  deleteSession
 };

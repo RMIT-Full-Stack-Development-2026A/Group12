@@ -33,6 +33,7 @@ router.use(authenticate);
 
 router.get('/:user_id', checkOwnership, userController.getProfile);
 router.get('/:user_id/sessions', checkOwnership, userController.getSessionHistory);
+router.delete('/:user_id/sessions/:session_id', checkOwnership, userController.deleteSession);
 router.put('/:user_id', checkOwnership, userController.updateProfile);
 router.patch(
   '/:user_id/avatar',
