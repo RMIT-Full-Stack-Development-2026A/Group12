@@ -40,6 +40,7 @@ try {
 
 const SALT_ROUNDS = 12;
 const USERNAME_REGEX = /^[A-Za-z0-9_-]{3,30}$/;
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PASSWORD_SPECIAL_REGEX = /[$#@!]/;
 
 const upload = multer({
@@ -134,6 +135,33 @@ function validateUsername(username) {
       'Username must contain only letters, numbers, _ or -. Example: player_01, John-Doe',
       'Contains unsupported characters or length is not between 3 and 30',
       'John-Doe'
+    );
+  }
+
+  return null;
+}
+
+function normalizeEmail(value) {
+  return String(value).trim().toLowerCase();
+}
+
+function validateEmail(email) {
+  if (typeof email !== 'string' || email.trim().length === 0) {
+    return createValidationError(
+      'email',
+      'Email must be a valid address. Example: player01@gmail.com',
+      'Email is empty or not a string',
+      'player01@gmail.com'
+    );
+  }
+
+  const value = normalizeEmail(email);
+  if (!EMAIL_REGEX.test(value)) {
+    return createValidationError(
+      'email',
+      'Email must be a valid address. Example: player01@gmail.com',
+      'Email format is invalid',
+      'player01@gmail.com'
     );
   }
 
@@ -282,6 +310,7 @@ function validateUpdatePayload(payload) {
   const errors = [];
 
   const hasUserField =
+    payload.email !== undefined ||
     payload.username !== undefined ||
     payload.password !== undefined ||
     payload.country !== undefined;
@@ -308,6 +337,13 @@ function validateUpdatePayload(payload) {
     const usernameError = validateUsername(payload.username);
     if (usernameError) {
       errors.push(usernameError);
+    }
+  }
+
+  if (payload.email !== undefined) {
+    const emailError = validateEmail(payload.email);
+    if (emailError) {
+      errors.push(emailError);
     }
   }
 
@@ -582,6 +618,7 @@ async function updateProfileByUserId(userId, body) {
   }
 
   const payload = {
+    email: body?.email,
     username: body?.username,
     password: body?.password,
     confirmPassword: body?.confirmPassword,
@@ -608,11 +645,29 @@ async function updateProfileByUserId(userId, body) {
     }
   }
 
+  if (payload.email !== undefined) {
+    const normalizedEmail = normalizeEmail(payload.email);
+    const existingUser = await User.findOne({ email: normalizedEmail }).exec();
+    if (existingUser && existingUser._id.toString() !== userId.toString()) {
+      validationErrors.push(
+        createValidationError(
+          'email',
+          'Email must be unique',
+          'Another account already uses this email address',
+          'player01@gmail.com'
+        )
+      );
+    }
+  }
+
   if (validationErrors.length > 0) {
     throw createAppError(400, 'Validation failed', validationErrors);
   }
 
   const userUpdate = {};
+  if (payload.email !== undefined) {
+    userUpdate.email = normalizeEmail(payload.email);
+  }
   if (payload.username !== undefined) {
     userUpdate.username = payload.username.trim();
   }
