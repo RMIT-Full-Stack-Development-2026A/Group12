@@ -2,6 +2,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/user');
 const { COUNTRY_LIST } = require('../constants/enums');
+const PlayerPreference = require('../modules/preference/preference.model');
 const { JWT_SECRET, JWT_EXPIRES_IN } = require('../config/jwtConfig');
 
 const MAX_FAILED_LOGINS = 3;
@@ -15,13 +16,23 @@ function normalizeLoginIdentifier(email, username) {
   return String(email || username).trim();
 }
 
-function getSafeUser(user) {
+async function getSafeUser(user) {
+  const preference = await PlayerPreference.findOne({ userId: user._id }).lean();
+
   return {
     _id: user._id,
     username: user.username,
     email: user.email,
     country: user.country,
     avatarUrl: user.avatarUrl,
+    preference: preference
+      ? {
+          preferredMarker: preference.preferredMarker,
+          preferredBoardStyle: preference.preferredBoardStyle,
+          preferredBoardSize: preference.preferredBoardSize,
+          isVipStyle: preference.isVipStyle
+        }
+      : null,
     role: user.role,
     isActive: user.isActive,
     isPremium: user.isPremium,
@@ -81,9 +92,11 @@ async function register(req, res) {
       lockUntil: null
     });
 
+    const safeUser = await getSafeUser(user);
+
     return res.status(201).json({
       message: 'Register successful',
-      user: getSafeUser(user)
+      user: safeUser
     });
   } catch (error) {
     if (error && error.code === 11000) {
@@ -180,10 +193,12 @@ async function login(req, res) {
       { expiresIn: JWT_EXPIRES_IN }
     );
 
+    const safeUser = await getSafeUser(user);
+
     return res.status(200).json({
       message: 'Login successful',
       token,
-      user: getSafeUser(user)
+      user: safeUser
     });
   } catch (error) {
     return res.status(500).json({ message: 'Login failed', error: error.message });

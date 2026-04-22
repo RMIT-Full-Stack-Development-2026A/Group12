@@ -7,6 +7,7 @@ const {
   getRoomController,
   startRoomController,
   makeMoveController,
+  surrenderGameController,
   getSessionByRoomController
 } = require('../controller/roomController');
 
@@ -27,5 +28,8 @@ router.post('/:roomCode/start', startRoomController);
 
 // Make move
 router.post('/move', makeMoveController);
+
+// Surrender current game
+router.post('/surrender', surrenderGameController);
 
 module.exports = router;

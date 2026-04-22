@@ -477,16 +477,19 @@ function normalizeStatus(status, result) {
 function computeResult(session, currentUserId) {
   const status = (session.status || '').toString().toLowerCase();
   const legacyResult = (session.result || '').toString().toUpperCase();
+  const player1Id = toObjectIdString(session.player1Id);
+  const player2Id = toObjectIdString(session.player2Id);
+  const winnerMarker = (session.winner || '').toString();
 
   if (status === 'aborted' || legacyResult === 'ABORT') {
     return 'aborted';
   }
 
-  if (status === 'waiting') {
+  if (status === 'waiting' || status === 'playing') {
     return null;
   }
 
-  if (legacyResult === 'DRAW') {
+  if (status === 'draw' || legacyResult === 'DRAW') {
     return 'draw';
   }
 
@@ -496,6 +499,16 @@ function computeResult(session, currentUserId) {
 
   if (legacyResult === 'PLAYER2_WIN') {
     return toObjectIdString(session.player2Id) === currentUserId ? 'win' : 'lose';
+  }
+
+  if (status === 'win' && winnerMarker) {
+    if (winnerMarker === session.player1Marker) {
+      return player1Id === currentUserId ? 'win' : 'lose';
+    }
+
+    if (winnerMarker === session.player2Marker) {
+      return player2Id === currentUserId ? 'win' : 'lose';
+    }
   }
 
   if (status === 'finished') {
@@ -759,11 +772,6 @@ async function getSessionHistoryByUserId(userId, query = {}) {
   const objectId = new mongoose.Types.ObjectId(userId);
   const pipeline = [{ $match: { $or: [{ player1Id: objectId }, { player2Id: objectId }] } }];
 
-  const resultMatch = buildResultMatch(query.result, objectId);
-  if (resultMatch) {
-    pipeline.push({ $match: resultMatch });
-  }
-
   const dateRange = buildDateRange(query);
   if (dateRange) {
     pipeline.push({ $match: { startTime: dateRange } });
@@ -838,7 +846,7 @@ async function getSessionHistoryByUserId(userId, query = {}) {
 
   const sessions = await GameSession.aggregate(pipeline).exec();
 
-  return sessions.map((session) => {
+  const mappedSessions = sessions.map((session) => {
     const normalizedGameType = normalizeGameType(session.gameType);
     const opponent =
       normalizedGameType === 'single_player'
@@ -860,6 +868,23 @@ async function getSessionHistoryByUserId(userId, query = {}) {
       player2Marker: session.player2Marker || null
     };
   });
+
+  const requestedResult = query.result ? String(query.result).toLowerCase() : '';
+  if (!requestedResult) {
+    return mappedSessions;
+  }
+
+  if (requestedResult === 'aborted') {
+    return mappedSessions.filter(
+      (session) =>
+        session.result === 'aborted'
+        || session.result === null
+        || session.result === undefined
+        || session.result === ''
+    );
+  }
+
+  return mappedSessions.filter((session) => session.result === requestedResult);
 }
 
 async function deleteSessionByUserId(userId, sessionId) {
