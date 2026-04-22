@@ -1,4 +1,4 @@
-function HomePage({ onPlay, onProfile }) {
+function HomePage({ onPlay }) {
   return (
     <div style={styles.page}>
       <div style={styles.card}>
@@ -8,12 +8,6 @@ function HomePage({ onPlay, onProfile }) {
             Play
           </button>
         </div>
-      </div>
-
-      <div style={styles.footerNav}>
-        <button type="button" onClick={onProfile} style={styles.secondaryBtn}>
-          Profile
-        </button>
       </div>
     </div>
   )
@@ -45,19 +39,6 @@ const styles = {
   primaryBtn: {
     width: 240,
     padding: '10px 12px',
-    border: '2px solid #7c7c7c',
-    borderRadius: 6,
-    background: '#ffffff',
-    cursor: 'pointer',
-    fontWeight: 600,
-  },
-  footerNav: {
-    display: 'flex',
-    justifyContent: 'flex-end',
-    paddingTop: 14,
-  },
-  secondaryBtn: {
-    padding: '8px 12px',
     border: '2px solid #7c7c7c',
     borderRadius: 6,
     background: '#ffffff',

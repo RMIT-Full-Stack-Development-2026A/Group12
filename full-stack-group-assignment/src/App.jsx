@@ -1,9 +1,10 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import AuthForm from './design/AuthForm'
 import LoginRequiredPopup from './components/LoginRequiredPopup'
 import CreateRoomPage from './pages/CreateRoomPage'
 import HomePage from './pages/HomePage'
 import ProfilePage from './pages/ProfilePage'
+import { API_ORIGIN, TOKEN_STORAGE_KEY } from './config/appConfig'
 
 const VIEWS = {
   HOME: 'home',
@@ -16,6 +17,7 @@ function App() {
   const [currentUser, setCurrentUser] = useState(null)
   const [view, setView] = useState(VIEWS.HOME)
   const [isGateOpen, setIsGateOpen] = useState(false)
+  const [isMenuOpen, setIsMenuOpen] = useState(false)
 
   const isAuthed = Boolean(currentUser)
 
@@ -37,25 +39,50 @@ function App() {
 
   function goHome() {
     setView(VIEWS.HOME)
+    setIsMenuOpen(false)
   }
 
   function goProfile() {
-    requireAuth(() => setView(VIEWS.PROFILE))
+    requireAuth(() => {
+      setView(VIEWS.PROFILE)
+      setIsMenuOpen(false)
+    })
   }
 
   function goCreate() {
     requireAuth(() => setView(VIEWS.CREATE))
   }
 
-  function openAuth() {
+  const openAuth = useCallback(() => {
     setIsGateOpen(false)
+    setIsMenuOpen(false)
     setView(VIEWS.AUTH)
-  }
+  }, [])
 
   function handleAuthSuccess(user) {
     setCurrentUser(user)
     setView(VIEWS.CREATE)
+    setIsMenuOpen(false)
   }
+
+  function handleUserUpdated(nextUser) {
+    setCurrentUser(nextUser)
+  }
+
+  function handleLogout() {
+    localStorage.removeItem(TOKEN_STORAGE_KEY)
+    setCurrentUser(null)
+    setIsGateOpen(false)
+    setIsMenuOpen(false)
+    setView(VIEWS.AUTH)
+  }
+
+  function toggleMenu() {
+    setIsMenuOpen((prev) => !prev)
+  }
+
+  const avatarSrc = toAssetUrl(currentUser?.avatarUrl)
+  const displayName = currentUser?.username || 'Guest'
 
   return (
     <div style={styles.shell}>
@@ -68,16 +95,51 @@ function App() {
           Home
         </button>
         <div style={styles.navRight}>
-          <button type="button" style={styles.navBtn} onClick={goProfile}>
-            Profile
+          <button
+            type="button"
+            style={styles.menuBtn}
+            onClick={toggleMenu}
+            aria-label="Open menu"
+            aria-expanded={isMenuOpen}
+          >
+            <span style={styles.menuIcon}>☰</span>
           </button>
-          <span style={styles.navDivider}>|||</span>
+
+          {isMenuOpen ? (
+            <div style={styles.menuPanel}>
+              <div style={styles.menuUserBlock}>
+                <div style={styles.avatarWrap}>
+                  {avatarSrc ? (
+                    <img src={avatarSrc} alt="User avatar" style={styles.avatarImage} />
+                  ) : (
+                    <div style={styles.avatarFallback} aria-label="Default avatar" />
+                  )}
+                </div>
+                <div style={styles.menuUsername}>{displayName}</div>
+              </div>
+
+              <button type="button" style={styles.menuAction} onClick={goProfile}>
+                Edit Profile
+              </button>
+
+              <button
+                type="button"
+                style={{
+                  ...styles.menuAction,
+                  ...styles.logoutAction,
+                }}
+                onClick={handleLogout}
+              >
+                Log out
+              </button>
+            </div>
+          ) : null}
         </div>
       </nav>
 
       <main style={styles.content}>
         {view === VIEWS.HOME ? (
-          <HomePage onPlay={goCreate} onProfile={goProfile} />
+          <HomePage onPlay={goCreate} />
         ) : null}
 
         {view === VIEWS.AUTH ? (
@@ -89,7 +151,11 @@ function App() {
         ) : null}
 
         {view === VIEWS.PROFILE ? (
-          <ProfilePage currentUser={currentUser} onRequestLogin={openAuth} />
+          <ProfilePage
+            currentUser={currentUser}
+            onRequestLogin={openAuth}
+            onUserUpdated={handleUserUpdated}
+          />
         ) : null}
       </main>
 
@@ -100,6 +166,13 @@ function App() {
       />
     </div>
   )
+}
+
+function toAssetUrl(path) {
+  if (!path) return ''
+  if (/^https?:\/\//i.test(path)) return path
+  if (API_ORIGIN) return `${API_ORIGIN}${path}`
+  return path
 }
 
 const styles = {
@@ -129,14 +202,10 @@ const styles = {
     alignItems: 'center',
   },
   navRight: {
+    position: 'relative',
     display: 'flex',
     alignItems: 'center',
     gap: 8,
-  },
-  navDivider: {
-    display: 'inline-block',
-    fontWeight: 700,
-    color: '#333',
   },
   navBtn: {
     border: '2px solid #7c7c7c',
@@ -145,6 +214,78 @@ const styles = {
     padding: '6px 12px',
     cursor: 'pointer',
     fontWeight: 600,
+  },
+  menuBtn: {
+    border: '2px solid #7c7c7c',
+    borderRadius: 6,
+    background: '#ffffff',
+    padding: '4px 10px',
+    cursor: 'pointer',
+    fontWeight: 700,
+  },
+  menuIcon: {
+    display: 'inline-block',
+    fontSize: 20,
+    lineHeight: 1,
+    color: '#333',
+  },
+  menuPanel: {
+    position: 'absolute',
+    top: 'calc(100% + 8px)',
+    right: 0,
+    width: 220,
+    border: '2px solid #7c7c7c',
+    borderRadius: 8,
+    background: '#ffffff',
+    boxShadow: '0 8px 18px rgba(0, 0, 0, 0.12)',
+    padding: 12,
+    display: 'grid',
+    gap: 8,
+    zIndex: 30,
+  },
+  menuUserBlock: {
+    display: 'grid',
+    justifyItems: 'center',
+    gap: 8,
+    borderBottom: '1px solid #d1d1d1',
+    paddingBottom: 10,
+    marginBottom: 2,
+  },
+  avatarWrap: {
+    width: 52,
+    height: 52,
+    borderRadius: '50%',
+    border: '2px solid #7c7c7c',
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+    objectFit: 'cover',
+    display: 'block',
+  },
+  avatarFallback: {
+    width: '100%',
+    height: '100%',
+    background: '#ffffff',
+  },
+  menuUsername: {
+    fontWeight: 700,
+    color: '#333',
+    fontSize: 15,
+  },
+  menuAction: {
+    border: 'none',
+    background: 'transparent',
+    textAlign: 'left',
+    padding: '8px 6px',
+    borderRadius: 6,
+    cursor: 'pointer',
+    fontWeight: 600,
+    color: '#333',
+  },
+  logoutAction: {
+    color: '#c62828',
   },
   content: {
     padding: 0,

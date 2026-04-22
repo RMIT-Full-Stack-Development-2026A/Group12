@@ -21,4 +21,5 @@ export const FALLBACK_COUNTRIES = [
   'Germany',
   'France',
   'New Zealand',
+  'Laos'
 ]

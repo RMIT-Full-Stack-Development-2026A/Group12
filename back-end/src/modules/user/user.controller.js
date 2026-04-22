@@ -1,7 +1,7 @@
 /*
  * PROJECT  : TicTacToang
  * MODULE   : User Profile
- * LAYER    : Controller
+ * LAYER    : Controller (fused minimal layer)
  * FEATURE  : Edit Profile / Avatar Upload / Session History
  * BRANCH   : nguyen
  * AUTHOR   : Edit Profile Developer
@@ -15,37 +15,32 @@ const bcrypt = require('bcryptjs');
 const multer = require('multer');
 const sharp = require('sharp');
 const mongoose = require('mongoose');
-const PlayerPreference = require('../models/playerPreference');
+const PlayerPreference = require('../preference/preference.model');
 const {
   COUNTRY_LIST,
   MARKER_OPTIONS,
   BOARD_STYLES,
   BOARD_SIZES,
   AI_BOT_NAMES
-} = require('../constants/enums');
-
-const BOT_NAME_MAP = AI_BOT_NAMES || {
-  easy: 'Easy Bot',
-  medium: 'Medium Bot',
-  hard: 'Hard Bot'
-};
+} = require('../../constants/enums');
 
 let User;
 try {
-  User = require('../models/user.model');
+  User = require('../../models/user.model');
 } catch {
-  User = require('../models/user');
+  User = require('../../models/user');
 }
 
 let GameSession;
 try {
-  GameSession = require('../models/gameSession.model');
+  GameSession = require('../../models/gameSession.model');
 } catch {
-  GameSession = require('../models/gameSession');
+  GameSession = require('../../models/gameSession');
 }
 
 const SALT_ROUNDS = 12;
 const USERNAME_REGEX = /^[A-Za-z0-9_-]{3,30}$/;
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PASSWORD_SPECIAL_REGEX = /[$#@!]/;
 
 const upload = multer({
@@ -140,6 +135,33 @@ function validateUsername(username) {
       'Username must contain only letters, numbers, _ or -. Example: player_01, John-Doe',
       'Contains unsupported characters or length is not between 3 and 30',
       'John-Doe'
+    );
+  }
+
+  return null;
+}
+
+function normalizeEmail(value) {
+  return String(value).trim().toLowerCase();
+}
+
+function validateEmail(email) {
+  if (typeof email !== 'string' || email.trim().length === 0) {
+    return createValidationError(
+      'email',
+      'Email must be a valid address. Example: player01@gmail.com',
+      'Email is empty or not a string',
+      'player01@gmail.com'
+    );
+  }
+
+  const value = normalizeEmail(email);
+  if (!EMAIL_REGEX.test(value)) {
+    return createValidationError(
+      'email',
+      'Email must be a valid address. Example: player01@gmail.com',
+      'Email format is invalid',
+      'player01@gmail.com'
     );
   }
 
@@ -288,6 +310,7 @@ function validateUpdatePayload(payload) {
   const errors = [];
 
   const hasUserField =
+    payload.email !== undefined ||
     payload.username !== undefined ||
     payload.password !== undefined ||
     payload.country !== undefined;
@@ -314,6 +337,13 @@ function validateUpdatePayload(payload) {
     const usernameError = validateUsername(payload.username);
     if (usernameError) {
       errors.push(usernameError);
+    }
+  }
+
+  if (payload.email !== undefined) {
+    const emailError = validateEmail(payload.email);
+    if (emailError) {
+      errors.push(emailError);
     }
   }
 
@@ -528,61 +558,24 @@ function buildResultMatch(result, currentUserId) {
     return null;
   }
 
-  const normalized = String(result).toLowerCase();
+  if (result === 'win') {
+    return { status: 'finished', winnerId: currentUserId };
+  }
 
-  if (normalized === 'win') {
+  if (result === 'lose') {
     return {
-      $or: [
-        { $and: [{ result: 'PLAYER1_WIN' }, { player1Id: currentUserId }] },
-        { $and: [{ result: 'PLAYER2_WIN' }, { player2Id: currentUserId }] },
-        { $and: [{ status: 'FINISHED' }, { winnerId: currentUserId }] }
-      ]
+      status: 'finished',
+      $expr: {
+        $and: [
+          { $ne: ['$winnerId', null] },
+          { $ne: ['$winnerId', currentUserId] }
+        ]
+      }
     };
   }
 
-  if (normalized === 'lose') {
-    return {
-      $or: [
-        { $and: [{ result: 'PLAYER1_WIN' }, { player2Id: currentUserId }] },
-        { $and: [{ result: 'PLAYER2_WIN' }, { player1Id: currentUserId }] },
-        {
-          $and: [
-            { status: 'FINISHED' },
-            {
-              $expr: {
-                $and: [
-                  { $ne: ['$winnerId', null] },
-                  { $ne: ['$winnerId', currentUserId] }
-                ]
-              }
-            }
-          ]
-        }
-      ]
-    };
-  }
-
-  if (normalized === 'draw') {
-    return {
-      $or: [
-        { result: 'DRAW' },
-        { status: 'DRAW' },
-        { $and: [{ status: 'FINISHED' }, { winnerId: null }] }
-      ]
-    };
-  }
-
-  if (normalized === 'aborted') {
-    return {
-      $or: [
-        { result: 'ABORT' },
-        { status: 'ABORTED' },
-        { status: 'aborted' },
-        { result: null },
-        { status: 'WAITING' },
-        { status: 'PLAYING' }
-      ]
-    };
+  if (result === 'aborted') {
+    return { status: 'aborted' };
   }
 
   return null;
@@ -625,6 +618,7 @@ async function updateProfileByUserId(userId, body) {
   }
 
   const payload = {
+    email: body?.email,
     username: body?.username,
     password: body?.password,
     confirmPassword: body?.confirmPassword,
@@ -651,11 +645,29 @@ async function updateProfileByUserId(userId, body) {
     }
   }
 
+  if (payload.email !== undefined) {
+    const normalizedEmail = normalizeEmail(payload.email);
+    const existingUser = await User.findOne({ email: normalizedEmail }).exec();
+    if (existingUser && existingUser._id.toString() !== userId.toString()) {
+      validationErrors.push(
+        createValidationError(
+          'email',
+          'Email must be unique',
+          'Another account already uses this email address',
+          'player01@gmail.com'
+        )
+      );
+    }
+  }
+
   if (validationErrors.length > 0) {
     throw createAppError(400, 'Validation failed', validationErrors);
   }
 
   const userUpdate = {};
+  if (payload.email !== undefined) {
+    userUpdate.email = normalizeEmail(payload.email);
+  }
   if (payload.username !== undefined) {
     userUpdate.username = payload.username.trim();
   }
@@ -739,7 +751,7 @@ async function updateAvatarByUserId(userId, file) {
       .jpeg({ quality: 80 })
       .toBuffer();
 
-    const avatarsDir = path.resolve(__dirname, '../..', 'uploads', 'avatars');
+    const avatarsDir = path.resolve(__dirname, '../../..', 'uploads', 'avatars');
     await fs.mkdir(avatarsDir, { recursive: true });
 
     const fileName = `${userId}.jpg`;
@@ -842,7 +854,7 @@ async function getSessionHistoryByUserId(userId, query = {}) {
     const normalizedGameType = normalizeGameType(session.gameType);
     const opponent =
       normalizedGameType === 'single_player'
-        ? { name: BOT_NAME_MAP[session.aiLevel] || 'Bot', avatarUrl: null }
+        ? { name: AI_BOT_NAMES[session.aiLevel] || 'Bot', avatarUrl: null }
         : { name: session.opponentName || null, avatarUrl: session.opponentAvatarUrl || null };
 
     return {
@@ -853,38 +865,9 @@ async function getSessionHistoryByUserId(userId, query = {}) {
       boardSize: normalizeBoardSize(session.boardSize),
       status: normalizeStatus(session.status, session.result),
       result: computeResult(session, userId),
-      opponent,
-      aiLevel: session.aiLevel || null,
-      moves: Array.isArray(session.moves) ? session.moves : [],
-      player1Marker: session.player1Marker || null,
-      player2Marker: session.player2Marker || null
+      opponent
     };
   });
-}
-
-async function deleteSessionByUserId(userId, sessionId) {
-  if (!mongoose.Types.ObjectId.isValid(sessionId)) {
-    throw createAppError(400, 'Invalid session id');
-  }
-
-  const objectUserId = new mongoose.Types.ObjectId(userId);
-  const objectSessionId = new mongoose.Types.ObjectId(sessionId);
-
-  const session = await GameSession.findOne({
-    _id: objectSessionId,
-    $or: [{ player1Id: objectUserId }, { player2Id: objectUserId }]
-  }).exec();
-
-  if (!session) {
-    throw createAppError(404, 'Session not found');
-  }
-
-  await GameSession.deleteOne({ _id: objectSessionId }).exec();
-
-  return {
-    sessionId,
-    deleted: true
-  };
 }
 
 function handleError(res, error) {
@@ -998,24 +981,10 @@ async function getSessionHistory(req, res) {
   }
 }
 
-async function deleteSession(req, res) {
-  try {
-    const data = await deleteSessionByUserId(req.params.user_id, req.params.session_id);
-    return res.status(200).json({
-      success: true,
-      message: 'Session deleted successfully',
-      data
-    });
-  } catch (error) {
-    return handleError(res, error);
-  }
-}
-
 module.exports = {
   getProfile,
   updateProfile,
   uploadAvatarMiddleware,
   updateAvatar,
-  getSessionHistory,
-  deleteSession
+  getSessionHistory
 };
