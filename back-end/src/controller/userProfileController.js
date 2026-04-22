@@ -912,31 +912,6 @@ async function deleteSessionByUserId(userId, sessionId) {
   };
 }
 
-async function deleteSessionByUserId(userId, sessionId) {
-  if (!mongoose.Types.ObjectId.isValid(sessionId)) {
-    throw createAppError(400, 'Invalid session id');
-  }
-
-  const objectUserId = new mongoose.Types.ObjectId(userId);
-  const objectSessionId = new mongoose.Types.ObjectId(sessionId);
-
-  const session = await GameSession.findOne({
-    _id: objectSessionId,
-    $or: [{ player1Id: objectUserId }, { player2Id: objectUserId }]
-  }).exec();
-
-  if (!session) {
-    throw createAppError(404, 'Session not found');
-  }
-
-  await GameSession.deleteOne({ _id: objectSessionId }).exec();
-
-  return {
-    sessionId,
-    deleted: true
-  };
-}
-
 function handleError(res, error) {
   if (error.statusCode === 400 && Array.isArray(error.details)) {
     return res.status(400).json({

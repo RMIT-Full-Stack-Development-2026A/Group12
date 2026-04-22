@@ -7,7 +7,8 @@ require('dotenv').config();
 
 const connectToDatabase = require('./config/db');
 
-const PORT = process.env.PORT || 5000;
+const app = express();
+const PORT = Number(process.env.PORT) || 5000;
 
 app.use(cors({
   origin: 'http://localhost:5173',
@@ -35,6 +36,16 @@ function startServer() {
   });
 
   initSocket(io);
+
+  server.once('error', (error) => {
+    if (error.code === 'EADDRINUSE') {
+      console.error(`Port ${PORT} is already in use. Stop the process using this port, then restart backend.`);
+      process.exit(1);
+    }
+
+    console.error('Unable to start HTTP server:', error.message);
+    process.exit(1);
+  });
 
   server.listen(PORT, () => {
     console.log(`Server started on port ${PORT}`);

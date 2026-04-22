@@ -1,5 +1,71 @@
-import { useEffect, useMemo, useState } from 'react';
-import { makeMove } from '../services/roomService';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { makeMove, surrenderGame } from '../services/roomService';
+
+const BOARD_STYLE_THEMES = {
+  1: {
+    surface: '#ffffff',
+    border: '#7c7c7c',
+    accent: '#4a4a4a',
+    soft: '#f5f5f5'
+  },
+  2: {
+    surface: '#eef6ff',
+    border: '#2563eb',
+    accent: '#1d4ed8',
+    soft: '#dbeafe'
+  },
+  3: {
+    surface: '#fff7ed',
+    border: '#f97316',
+    accent: '#c2410c',
+    soft: '#ffedd5'
+  }
+};
+
+const BOARD_STYLE_LABELS = {
+  1: 'Classic',
+  2: 'Aurora',
+  3: 'Contrast'
+};
+
+const BOT_NAME_BY_LEVEL = {
+  easy: 'Easy Bot',
+  medium: 'Medium Bot',
+  hard: 'Hard Bot'
+};
+
+function getStyleId(value) {
+  const nextValue = Number(value);
+  return [1, 2, 3].includes(nextValue) ? nextValue : 1;
+}
+
+function getStyleTheme(value) {
+  return BOARD_STYLE_THEMES[getStyleId(value)] || BOARD_STYLE_THEMES[1];
+}
+
+function toAlgebraicNotation(position) {
+  if (!position || typeof position !== 'string') {
+    return '';
+  }
+
+  const [rawRow, rawCol] = position.split(',');
+  const row = Number(rawRow);
+  const col = Number(rawCol);
+
+  if (!Number.isInteger(row) || !Number.isInteger(col) || row < 0 || col < 0) {
+    return '';
+  }
+
+  let value = col;
+  let column = '';
+
+  do {
+    column = String.fromCharCode(65 + (value % 26)) + column;
+    value = Math.floor(value / 26) - 1;
+  } while (value >= 0);
+
+  return `${column}${row + 1}`;
+}
 
 function GameBoard({
   boardSize = 10,
@@ -14,6 +80,7 @@ function GameBoard({
 }) {
   const [loadingCell, setLoadingCell] = useState(null);
   const [error, setError] = useState('');
+  const snapshotRef = useRef(null);
   const [sessionState, setSessionState] = useState(
     resultData?.data?.session || resultData?.data || null
   );
@@ -39,8 +106,9 @@ function GameBoard({
   const currentTheme = getStyleTheme(currentStyleId);
 
   const username = currentUser?.username || 'Unknown';
-  const isFinished =
-    status === 'WIN' || status === 'DRAW' || status === 'FINISHED';
+  const isFinished = status === 'WIN' || status === 'DRAW' || status === 'FINISHED';
+  const isLocalOrSingle = gameMode === 'LOCAL' || gameMode === 'SINGLE';
+  const canAct = Boolean(currentTurn) && (!isLocalOrSingle ? currentTurn === marker : true);
 
   const players = useMemo(() => {
     if (roomData?.players?.length) {
@@ -110,10 +178,6 @@ function GameBoard({
   const handleCellClick = async (index) => {
     if (!sessionId || isFinished || !canAct) return;
 
-    if (marker !== currentTurn) {
-      return;
-    }
-
     const row = Math.floor(index / boardSize);
     const col = index % boardSize;
 
@@ -144,7 +208,7 @@ function GameBoard({
         sessionId,
         row,
         col,
-        marker
+        marker: moveMarker
       });
 
       setSessionState(data.data);
@@ -234,8 +298,13 @@ function GameBoard({
             key={index}
             type="button"
             onClick={() => handleCellClick(index)}
-            disabled={loadingCell === index || isFinished || marker !== currentTurn}
-            style={styles.cell}
+            disabled={loadingCell === index || isFinished || !canAct}
+            style={{
+              ...styles.cell,
+              borderColor: currentTheme.border,
+              color: currentTheme.accent,
+              backgroundColor: currentTheme.surface
+            }}
           >
             {loadingCell === index ? '...' : cell}
           </button>

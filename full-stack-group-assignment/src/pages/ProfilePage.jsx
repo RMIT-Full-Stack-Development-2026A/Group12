@@ -13,6 +13,8 @@ import {
   uploadUserAvatar,
 } from '../services/userProfileService'
 
+const SESSION_PAGE_SIZE = 10
+
 function ProfilePage({ currentUser, onRequestLogin, onUserUpdated }) {
   const userId = currentUser?._id
   const avatarInputRef = useRef(null)
@@ -44,6 +46,7 @@ function ProfilePage({ currentUser, onRequestLogin, onUserUpdated }) {
   const [sessionMessage, setSessionMessage] = useState('')
   const [isViewAllOpen, setIsViewAllOpen] = useState(false)
   const [sessionSearch, setSessionSearch] = useState('')
+  const [sessionPage, setSessionPage] = useState(1)
   const [replaySessionId, setReplaySessionId] = useState('')
 
   const [sessionFilters, setSessionFilters] = useState({
@@ -187,6 +190,32 @@ function ProfilePage({ currentUser, onRequestLogin, onUserUpdated }) {
   }, [sessions, sessionSearch])
 
   const recentSessions = useMemo(() => filteredSessions.slice(0, 3), [filteredSessions])
+
+  const totalSessionPages = useMemo(
+    () => Math.max(1, Math.ceil(filteredSessions.length / SESSION_PAGE_SIZE)),
+    [filteredSessions.length]
+  )
+
+  const currentSessionPage = useMemo(
+    () => Math.min(sessionPage, totalSessionPages),
+    [sessionPage, totalSessionPages]
+  )
+
+  const pagedSessions = useMemo(() => {
+    const startIndex = (currentSessionPage - 1) * SESSION_PAGE_SIZE
+    const endIndex = startIndex + SESSION_PAGE_SIZE
+    return filteredSessions.slice(startIndex, endIndex)
+  }, [filteredSessions, currentSessionPage])
+
+  useEffect(() => {
+    setSessionPage(1)
+  }, [sessionSearch, sessionFilters])
+
+  useEffect(() => {
+    if (sessionPage > totalSessionPages) {
+      setSessionPage(totalSessionPages)
+    }
+  }, [sessionPage, totalSessionPages])
 
   async function saveProfile() {
     if (!userId) {
@@ -677,6 +706,36 @@ function ProfilePage({ currentUser, onRequestLogin, onUserUpdated }) {
                 </div>
 
                 <div style={styles.tableWrap}>
+                  <div style={styles.paginationBar}>
+                    <div style={styles.paginationInfo}>
+                      Showing {(currentSessionPage - 1) * SESSION_PAGE_SIZE + 1}
+                      {' - '}
+                      {Math.min(currentSessionPage * SESSION_PAGE_SIZE, filteredSessions.length)}
+                      {' of '}
+                      {filteredSessions.length} sessions
+                    </div>
+
+                    <div style={styles.paginationActions}>
+                      <button
+                        type="button"
+                        style={styles.tableBtn}
+                        onClick={() => setSessionPage((prev) => Math.max(1, prev - 1))}
+                        disabled={currentSessionPage <= 1}
+                      >
+                        Previous
+                      </button>
+                      <span style={styles.paginationInfo}>Page {currentSessionPage}/{totalSessionPages}</span>
+                      <button
+                        type="button"
+                        style={styles.tableBtn}
+                        onClick={() => setSessionPage((prev) => Math.min(totalSessionPages, prev + 1))}
+                        disabled={currentSessionPage >= totalSessionPages}
+                      >
+                        Next
+                      </button>
+                    </div>
+                  </div>
+
                   <table style={styles.table}>
                     <thead>
                       <tr>
@@ -690,11 +749,12 @@ function ProfilePage({ currentUser, onRequestLogin, onUserUpdated }) {
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredSessions.map((session, index) => {
+                      {pagedSessions.map((session, index) => {
                         const isReplayOpen = replaySessionId === session.sessionId
+                        const displayIndex = (currentSessionPage - 1) * SESSION_PAGE_SIZE + index + 1
                         return (
                           <tr key={session.sessionId}>
-                            <td style={styles.td}>{index + 1}</td>
+                            <td style={styles.td}>{displayIndex}</td>
                             <td style={styles.td}>{formatDateTime(session.startTime)}</td>
                             <td style={styles.td}>{formatDateTime(session.endTime)}</td>
                             <td style={styles.td}>{session.gameType || '-'}</td>
@@ -731,7 +791,7 @@ function ProfilePage({ currentUser, onRequestLogin, onUserUpdated }) {
                                       <div style={styles.replayHeader}>Replay moves</div>
                                       {session.moves.map((move) => (
                                         <div key={`${session.sessionId}-${move.moveNumber}`} style={styles.replayLine}>
-                                          #{move.moveNumber} - {move.player} to {move.position}
+                                          #{move.moveNumber} - {resolveReplayPlayerName(session, move.player, currentUser?.username || 'You')} to {toAlgebraicNotation(move.position) || move.position || '-'}
                                         </div>
                                       ))}
                                     </>
@@ -802,6 +862,54 @@ function formatDateTime(value) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return '-'
   return date.toLocaleString()
+}
+
+function toAlgebraicNotation(position) {
+  if (!position || typeof position !== 'string') return ''
+
+  const [rawRow, rawCol] = position.split(',')
+  const row = Number(rawRow)
+  const col = Number(rawCol)
+
+  if (!Number.isInteger(row) || !Number.isInteger(col) || row < 0 || col < 0) {
+    return ''
+  }
+
+  let value = col
+  let column = ''
+
+  do {
+    column = String.fromCharCode(65 + (value % 26)) + column
+    value = Math.floor(value / 26) - 1
+  } while (value >= 0)
+
+  return `${column}${row + 1}`
+}
+
+function resolveReplayPlayerName(session, moveMarker, currentUsername) {
+  if (!session || !moveMarker) return '-'
+
+  const gameType = (session.gameType || '').toLowerCase()
+
+  if (gameType === 'single_player') {
+    if (moveMarker === session.player1Marker) return 'Player 1'
+    if (moveMarker === session.player2Marker) return session.opponent?.name || 'Bot'
+    return moveMarker
+  }
+
+  if (gameType === 'two_player') {
+    if (moveMarker === session.player1Marker) return 'Player 1'
+    if (moveMarker === session.player2Marker) return 'Player 2'
+    return moveMarker
+  }
+
+  if (gameType === 'online') {
+    if (moveMarker === session.player1Marker) return currentUsername || 'You'
+    if (moveMarker === session.player2Marker) return session.opponent?.name || 'Opponent'
+    return moveMarker
+  }
+
+  return moveMarker
 }
 
 function toAssetUrl(path) {
@@ -957,6 +1065,24 @@ const styles = {
   },
   tableWrap: {
     overflowX: 'auto',
+  },
+  paginationBar: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+    flexWrap: 'wrap',
+  },
+  paginationActions: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  paginationInfo: {
+    fontSize: 13,
+    color: '#333',
   },
   table: {
     width: '100%',

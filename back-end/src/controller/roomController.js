@@ -910,7 +910,7 @@ const createRoomController = async (req, res) => {
         boardSize: normalizedBoardSize,
         gameType: 'SINGLE',
         board: createBoard(normalizedBoardSize),
-        currentTurn: normalizedMarker,
+        currentTurn: normalizedStarterMarker,
         roomCode: null,
         status: 'PLAYING',
         winner: null,
@@ -958,7 +958,7 @@ const createRoomController = async (req, res) => {
         player1Id: userId,
         player2Id: null,
         player1Marker: normalizedMarker,
-        player2Marker: secondMarker,
+        player2Marker: normalizedSecondMarker,
         roomCode: null,
         boardSize: normalizedBoardSize,
         gameType: 'LOCAL',
@@ -1347,10 +1347,13 @@ const makeMoveController = async (req, res) => {
 
     await session.save();
 
-    const io = getIO();
-     if (session.roomCode) {
-        const io = getIO();
-        io.to(session.roomCode).emit('session_updated', session);
+    if (session.gameType === 'SINGLE' && session.status === 'PLAYING' && session.currentTurn === session.player2Marker) {
+      await applyBotMoveToSession(session);
+    }
+
+    if (session.roomCode) {
+      const io = getIO();
+      io.to(session.roomCode).emit('session_updated', session);
     }
 
     return res.status(200).json({
@@ -1362,6 +1365,71 @@ const makeMoveController = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: error.message || 'Make move failed'
+    });
+  }
+};
+
+const surrenderGameController = async (req, res) => {
+  try {
+    const { sessionId, marker } = req.body;
+
+    if (!sessionId) {
+      return res.status(400).json({
+        success: false,
+        message: 'sessionId is required'
+      });
+    }
+
+    const session = await GameSession.findById(sessionId);
+
+    if (!session) {
+      return res.status(404).json({
+        success: false,
+        message: 'Session not found'
+      });
+    }
+
+    if (session.status === 'WIN' || session.status === 'DRAW' || session.status === 'FINISHED') {
+      return res.status(400).json({
+        success: false,
+        message: 'Game already finished'
+      });
+    }
+
+    const surrenderMarker = String(marker || session.currentTurn || '').trim();
+    const validMarkers = [session.player1Marker, session.player2Marker].filter(Boolean);
+
+    if (!validMarkers.includes(surrenderMarker)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid surrender marker'
+      });
+    }
+
+    const winnerMarker = surrenderMarker === session.player1Marker ? session.player2Marker : session.player1Marker;
+
+    session.status = 'WIN';
+    session.winner = winnerMarker || null;
+    session.result = winnerMarker === session.player1Marker ? 'PLAYER1_WIN' : 'PLAYER2_WIN';
+    session.endTime = new Date();
+    session.currentTurn = winnerMarker || session.currentTurn;
+
+    await session.save();
+
+    if (session.roomCode) {
+      const io = getIO();
+      io.to(session.roomCode).emit('session_updated', session);
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Game surrendered',
+      data: session
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message || 'Surrender failed'
     });
   }
 };
@@ -1399,5 +1467,6 @@ module.exports = {
   getRoomController,
   startRoomController,
   makeMoveController,
+  surrenderGameController,
   getSessionByRoomController
 };
