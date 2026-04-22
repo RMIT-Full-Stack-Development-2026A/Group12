@@ -37,7 +37,9 @@ export const createGame = async ({
   gameMode,
   marker,
   boardSize,
-  aiLevel = 'easy'
+  aiLevel = 'easy',
+  player2Marker,
+  starterMarker
 }) => {
   return postJson(`${ROOMS_URL}/create`, {
     userId,
@@ -45,6 +47,8 @@ export const createGame = async ({
     marker,
     boardSize,
     aiLevel,
+    player2Marker,
+    starterMarker,
   })
 }
 
@@ -55,9 +59,10 @@ export const joinRoom = async ({ roomCode, userId, marker }) => {
   })
 }
 
-export const startRoom = async ({ roomCode, userId }) => {
+export const startRoom = async ({ roomCode, userId, starterMarker }) => {
   return postJson(`${ROOMS_URL}/${roomCode}/start`, {
     userId,
+    starterMarker,
   })
 }
 
@@ -70,6 +75,13 @@ export const makeMove = async ({ sessionId, row, col, marker }) => {
     sessionId,
     row,
     col,
+    marker,
+  })
+}
+
+export const surrenderGame = async ({ sessionId, marker }) => {
+  return postJson(`${ROOMS_URL}/surrender`, {
+    sessionId,
     marker,
   })
 }

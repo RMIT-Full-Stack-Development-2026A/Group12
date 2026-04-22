@@ -5,11 +5,28 @@ import GameBoard from '../components/GameBoard';
 
 import { BOARD_SIZES, MARKERS } from '../constants/gameOptions'
 
+const CREATE_GAME_DRAFT_KEY = 'tictactoe.create-game-draft';
+
+function readDraftValue() {
+  try {
+    const raw = localStorage.getItem(CREATE_GAME_DRAFT_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
 function CreateRoomForm({ currentUser }) {
-  const [gameMode, setGameMode] = useState('');
-  const [marker, setMarker] = useState('');
-  const [boardSize, setBoardSize] = useState('');
-  const [aiLevel, setAiLevel] = useState('easy');
+  const draft = readDraftValue();
+
+  const [gameMode, setGameMode] = useState(draft?.gameMode || '');
+  const [marker, setMarker] = useState(draft?.marker || '');
+  const [localPlayer2Marker, setLocalPlayer2Marker] = useState(draft?.localPlayer2Marker || '');
+  const [boardSize, setBoardSize] = useState(draft?.boardSize || '');
+  const [aiLevel, setAiLevel] = useState(draft?.aiLevel || 'easy');
+  const [nextStarterRole, setNextStarterRole] = useState(draft?.nextStarterRole || 'PLAYER1');
 
   const [loading, setLoading] = useState(false);
   const [joining, setJoining] = useState(false);
@@ -24,6 +41,24 @@ function CreateRoomForm({ currentUser }) {
   const currentUserId = currentUser?._id || '';
   const currentUsername = currentUser?.username || '';
 
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        CREATE_GAME_DRAFT_KEY,
+        JSON.stringify({
+          gameMode,
+          marker,
+          localPlayer2Marker,
+          boardSize,
+          aiLevel,
+          nextStarterRole
+        })
+      );
+    } catch {
+      // Ignore storage failures and keep the form functional.
+    }
+  }, [gameMode, marker, localPlayer2Marker, boardSize, aiLevel, nextStarterRole]);
+
   const roomCode =
     resultData?.data?.room?.roomCode || resultData?.data?.roomCode || '';
 
@@ -33,6 +68,7 @@ function CreateRoomForm({ currentUser }) {
 
   const isOnlineWaiting = gameMode === 'ONLINE' && !!roomCode && !showBoard;
   const roomData = resultData?.data?.room || null;
+  const sessionData = resultData?.data?.session || resultData?.data || null;
 
   const getPlayerUserId = (player) => {
     if (!player?.userId) return '';
@@ -43,6 +79,18 @@ function CreateRoomForm({ currentUser }) {
   const hostUserId = getPlayerUserId(roomData?.players?.[0]);
   const isHost = !!hostUserId && String(currentUserId) === String(hostUserId);
   const hasTwoPlayers = (roomData?.players?.length || 0) >= 2;
+  const isLocalGame = gameMode === 'LOCAL';
+  const isSingleGame = gameMode === 'SINGLE';
+  const isOnlineGame = gameMode === 'ONLINE';
+  const onlineGuestMarker = roomData?.players?.[1]?.mark || sessionData?.player2Marker || '';
+  const starterMarker =
+    nextStarterRole === 'PLAYER1'
+      ? marker
+      : isLocalGame
+        ? localPlayer2Marker
+        : isSingleGame
+          ? sessionData?.player2Marker || MARKERS.find((item) => item !== marker) || ''
+          : onlineGuestMarker || marker;
 
   const usedMarkers = useMemo(() => {
     const players = resultData?.data?.room?.players || [];
@@ -50,6 +98,21 @@ function CreateRoomForm({ currentUser }) {
   }, [resultData]);
 
   const availableJoinMarkers = MARKERS.filter((item) => !usedMarkers.includes(item));
+
+  useEffect(() => {
+    if (gameMode !== 'LOCAL') {
+      setLocalPlayer2Marker('');
+      return;
+    }
+
+    setLocalPlayer2Marker((prev) => {
+      if (prev && prev !== marker) {
+        return prev;
+      }
+
+      return MARKERS.find((item) => item !== marker) || '';
+    });
+  }, [gameMode, marker]);
 
   const extractRoomCode = (value) => {
     const trimmed = value.trim();
@@ -126,6 +189,11 @@ function CreateRoomForm({ currentUser }) {
       return;
     }
 
+    if (isLocalGame && !localPlayer2Marker) {
+      setError('Please select marker for Player 2');
+      return;
+    }
+
     try {
       setLoading(true);
       setError('');
@@ -137,7 +205,9 @@ function CreateRoomForm({ currentUser }) {
         gameMode,
         marker,
         boardSize: Number(boardSize),
-        aiLevel
+        aiLevel,
+        player2Marker: isLocalGame ? localPlayer2Marker : undefined,
+        starterMarker
       });
 
       setResultData(data);
@@ -246,9 +316,17 @@ function CreateRoomForm({ currentUser }) {
       setStarting(true);
       setError('');
 
+      const startStarterMarker = nextStarterRole === 'PLAYER1' ? marker : onlineGuestMarker;
+      if (!startStarterMarker) {
+        setError('Please choose who goes first before starting');
+        setStarting(false);
+        return;
+      }
+
       const data = await startRoom({
         roomCode,
-        userId: currentUserId
+        userId: currentUserId,
+        starterMarker: startStarterMarker
       });
 
       setResultData((prev) => ({
@@ -268,18 +346,14 @@ function CreateRoomForm({ currentUser }) {
     }
   };
   const resetToCreateGame = () => {
-  setShowBoard(false);
-  setResultData(null);
-  setError('');
-  setJoining(false);
-  setStarting(false);
-  setLoading(false);
-  setJoinRoomCode('');
-  setJoinMarker('');
-  setGameMode('');
-  setMarker('');
-  setBoardSize('');
-  setAiLevel('easy');
+    setShowBoard(false);
+    setResultData(null);
+    setError('');
+    setJoining(false);
+    setStarting(false);
+    setLoading(false);
+    setJoinRoomCode('');
+    setJoinMarker('');
 };
 
 const handlePlayAgain = async () => {
@@ -303,7 +377,9 @@ const handlePlayAgain = async () => {
       gameMode,
       marker,
       boardSize: Number(boardSize),
-      aiLevel
+      aiLevel,
+      player2Marker: isLocalGame ? localPlayer2Marker : undefined,
+      starterMarker
     });
 
     setResultData(data);
@@ -359,7 +435,10 @@ const handlePlayAgain = async () => {
               <div style={styles.labelBox}>Game mode :</div>
               <select
                 value={gameMode}
-                onChange={(e) => setGameMode(e.target.value)}
+                onChange={(e) => {
+                  setGameMode(e.target.value)
+                  setError('')
+                }}
                 style={styles.select}
               >
                 <option value="">Select mode</option>
@@ -373,7 +452,10 @@ const handlePlayAgain = async () => {
               <div style={styles.labelBox}>Marker :</div>
               <select
                 value={marker}
-                onChange={(e) => setMarker(e.target.value)}
+                onChange={(e) => {
+                  setMarker(e.target.value)
+                  setError('')
+                }}
                 style={styles.select}
               >
                 <option value="">Select marker</option>
@@ -384,6 +466,24 @@ const handlePlayAgain = async () => {
                 ))}
               </select>
             </div>
+
+            {isLocalGame ? (
+              <div style={styles.row}>
+                <div style={styles.labelBox}>Player 2 marker :</div>
+                <select
+                  value={localPlayer2Marker}
+                  onChange={(e) => setLocalPlayer2Marker(e.target.value)}
+                  style={styles.select}
+                >
+                  <option value="">Select marker</option>
+                  {MARKERS.filter((item) => item !== marker).map((item) => (
+                    <option key={item} value={item}>
+                      {item}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : null}
 
             <div style={styles.row}>
               <div style={styles.labelBox}>Board size :</div>
@@ -416,6 +516,24 @@ const handlePlayAgain = async () => {
               </div>
             )}
 
+            {(isLocalGame || isSingleGame || isOnlineGame) ? (
+              <div style={styles.row}>
+                <div style={styles.labelBox}>First turn :</div>
+                <select
+                  value={nextStarterRole}
+                  onChange={(e) => setNextStarterRole(e.target.value)}
+                  style={styles.select}
+                >
+                  <option value="PLAYER1">
+                    {isOnlineGame ? 'Host (Player 1)' : 'Player 1'}
+                  </option>
+                  <option value="PLAYER2">
+                    {isLocalGame ? 'Player 2' : isSingleGame ? 'Bot' : 'Guest (Player 2)'}
+                  </option>
+                </select>
+              </div>
+            ) : null}
+
             <button type="submit" disabled={loading} style={styles.playButton}>
               {loading ? 'Loading...' : 'Play'}
             </button>
@@ -429,6 +547,7 @@ const handlePlayAgain = async () => {
               <p>Game Mode: {gameMode}</p>
               <p>Board Size: {resultData.data?.boardSize}</p>
               <p>Marker: {marker}</p>
+              {isLocalGame ? <p>Player 2 Marker: {localPlayer2Marker || 'N/A'}</p> : null}
               <p>Session ID: {resultData.data?._id || 'N/A'}</p>
             </div>
           )}
@@ -518,6 +637,21 @@ const handlePlayAgain = async () => {
             <p><strong>Role:</strong> {isHost ? 'Host' : 'Guest'}</p>
           </div>
 
+          {isHost ? (
+            <div style={styles.row}>
+              <div style={styles.labelBox}>First turn :</div>
+              <select
+                value={nextStarterRole}
+                onChange={(e) => setNextStarterRole(e.target.value)}
+                style={styles.select}
+                disabled={!hasTwoPlayers || starting}
+              >
+                <option value="PLAYER1">Host (Player 1)</option>
+                <option value="PLAYER2">Guest (Player 2)</option>
+              </select>
+            </div>
+          ) : null}
+
           {!hasTwoPlayers && (
             <div style={styles.resultBox}>
               <p><strong>User 2 Join This Room</strong></p>
@@ -596,7 +730,7 @@ const styles = {
   title: {
     textAlign: 'center',
     marginBottom: '28px',
-    fontSize: '20px'
+    fontSize: '18px'
   },
   form: {
     display: 'flex',
@@ -607,13 +741,17 @@ const styles = {
   row: {
     display: 'flex',
     width: '100%',
-    maxWidth: '420px'
+    maxWidth: '420px',
+    fontSize: '14px',
+    lineHeight: 1.35
   },
   joinRow: {
     display: 'flex',
     width: '100%',
     maxWidth: '420px',
-    margin: '10px auto'
+    margin: '10px auto',
+    fontSize: '14px',
+    lineHeight: 1.35
   },
   labelBox: {
     width: '140px',
@@ -621,19 +759,22 @@ const styles = {
     padding: '10px 12px',
     backgroundColor: '#fff',
     textAlign: 'center',
-    boxSizing: 'border-box'
+    boxSizing: 'border-box',
+    fontSize: '14px'
   },
   select: {
     flex: 1,
     border: '2px solid #888',
     padding: '10px 12px',
-    outline: 'none'
+    outline: 'none',
+    fontSize: '14px'
   },
   userIdInput: {
     width: '100%',
     padding: '10px 12px',
     border: '2px solid #888',
-    boxSizing: 'border-box'
+    boxSizing: 'border-box',
+    fontSize: '14px'
   },
   playButton: {
     marginTop: '10px',
@@ -642,7 +783,8 @@ const styles = {
     border: '2px solid #888',
     borderRadius: '6px',
     backgroundColor: '#fff',
-    cursor: 'pointer'
+    cursor: 'pointer',
+    fontSize: '14px'
   },
   copyUserButton: {
     marginTop: '10px',
@@ -650,7 +792,8 @@ const styles = {
     border: '1px solid #888',
     borderRadius: '6px',
     backgroundColor: '#fff',
-    cursor: 'pointer'
+    cursor: 'pointer',
+    fontSize: '14px'
   },
   error: {
     color: 'red',
@@ -661,7 +804,9 @@ const styles = {
     marginTop: '24px',
     border: '1px solid #ccc',
     padding: '16px',
-    textAlign: 'center'
+    textAlign: 'center',
+    fontSize: '14px',
+    lineHeight: 1.45
   },
   playerHeader: {
     display: 'flex',
@@ -675,10 +820,11 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     gap: '10px',
-    fontWeight: '600'
+    fontWeight: '600',
+    fontSize: '14px'
   },
   playerIcon: {
-    fontSize: '22px'
+    fontSize: '18px'
   },
   linkRow: {
     display: 'flex',
@@ -693,20 +839,23 @@ const styles = {
     border: '2px solid #888',
     padding: '10px 12px',
     textAlign: 'center',
-    boxSizing: 'border-box'
+    boxSizing: 'border-box',
+    fontSize: '14px'
   },
   linkInput: {
     flex: 1,
     border: '2px solid #888',
     padding: '10px 12px',
-    outline: 'none'
+    outline: 'none',
+    fontSize: '14px'
   },
   iconButton: {
     marginLeft: '10px',
     padding: '10px 12px',
     border: '2px solid #888',
     backgroundColor: '#fff',
-    cursor: 'pointer'
+    cursor: 'pointer',
+    fontSize: '14px'
   },
   shareButton: {
     display: 'block',
@@ -716,12 +865,14 @@ const styles = {
     border: '2px solid #888',
     borderRadius: '6px',
     backgroundColor: '#fff',
-    cursor: 'pointer'
+    cursor: 'pointer',
+    fontSize: '14px'
   },
   roomInfo: {
     textAlign: 'center',
     marginBottom: '28px',
-    lineHeight: '1.8'
+    lineHeight: '1.55',
+    fontSize: '14px'
   },
   startButton: {
     display: 'block',
@@ -730,13 +881,15 @@ const styles = {
     padding: '14px 24px',
     border: '2px solid #888',
     borderRadius: '6px',
-    backgroundColor: '#f0f0f0'
+    backgroundColor: '#f0f0f0',
+    fontSize: '14px'
   },
   waitingText: {
     textAlign: 'center',
     fontWeight: '600',
     color: '#555',
-    marginTop: '12px'
+    marginTop: '12px',
+    fontSize: '14px'
   }
 };
 
