@@ -1,6 +1,11 @@
 const mongoose = require('mongoose');
 
-const userSchema = new mongoose.Schema({
+const UserSchema = new mongoose.Schema({
+  // id: {
+  //   type: String,
+  //   required: true,
+  //   unique: true
+  // },
   username: {
     type: String,
     required: true,
@@ -26,11 +31,18 @@ const userSchema = new mongoose.Schema({
     enum: ['PLAYER', 'ADMIN'],
     default: 'PLAYER'
   },
-  isActive: { type: Boolean, default: true },
-  isPremium: { type: Boolean, default: false },
-  walletBalance: { type: Number, default: 0 },
-  failedLogins: { type: Number, default: 0 },
-  lockUntil: Date
+  avatarUrl: String,
+  isActive: {
+    type: Boolean,
+    default: true
+  },
+
+  preferences: {
+    boardSize: Number,
+    theme: String,
+    marker: String
+  }
+
 }, { timestamps: true });
 
-module.exports = mongoose.model('User', userSchema);
+module.exports = mongoose.model('User', UserSchema);

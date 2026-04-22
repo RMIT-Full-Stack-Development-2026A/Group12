@@ -1,32 +1,20 @@
-const service = require('./subscription.service');
+const subService = require('./subscription.service');
 
-exports.deposit = async (req, res) => {
+async function subscribeWallet(req, res) {
   try {
-    const { userId, amount } = req.body;
-
-    const user = await service.deposit(userId, amount);
-
-    res.json({
-      message: 'Deposit successful',
-      walletBalance: user.walletBalance
-    });
+    const result = await subService.subscribeWithWallet(req.auth.userId);
+    res.json({ message: 'Subscribed successfully', result });
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    res.status(400).json({ message: err.message });
   }
-};
+}
 
-exports.subscribe = async (req, res) => {
-  try {
-    const { userId } = req.body;
+async function subscribeQR(req, res) {
+  const result = await subService.subscribeQR(req.auth.userId);
+  res.json({ message: 'QR Payment success', result });
+}
 
-    const user = await service.subscribe(userId);
-
-    res.json({
-      message: 'Subscription successful',
-      isPremium: user.isPremium,
-      walletBalance: user.walletBalance
-    });
-  } catch (err) {
-    res.status(400).json({ error: err.message });
-  }
+module.exports = {
+  subscribeWallet,
+  subscribeQR
 };

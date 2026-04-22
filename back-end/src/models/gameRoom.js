@@ -1,37 +1,89 @@
 const mongoose = require('mongoose');
 
+const ALLOWED_MARKERS = ['X', 'O', 'A', 'B', '△', '○'];
+
 const ChatSchema = new mongoose.Schema({
-  senderId: mongoose.Schema.Types.ObjectId,
-  message: String,
-  timestamp: Date
+  senderId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null
+  },
+  message: {
+    type: String,
+    required: true
+  },
+  timestamp: {
+    type: Date,
+    default: Date.now
+  }
 }, { _id: false });
 
 const PlayerSchema = new mongoose.Schema({
-  userId: mongoose.Schema.Types.ObjectId,
-  mark: String,
-  connected: Boolean
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  mark: {
+    type: String,
+    enum: ALLOWED_MARKERS,
+    required: true
+  },
+  connected: {
+    type: Boolean,
+    default: true
+  }
 }, { _id: false });
 
 const GameRoomSchema = new mongoose.Schema({
   roomCode: {
     type: String,
-    unique: true
+    unique: true,
+    required: true
   },
 
-  players: [PlayerSchema],
+  players: {
+    type: [PlayerSchema],
+    default: []
+  },
 
-  currentTurn: String,
+  boardSize: {
+    type: Number,
+    enum: [3, 10, 15],
+    default: 10
+  },
+
+  hostMarker: {
+    type: String,
+    enum: ALLOWED_MARKERS,
+    required: true
+  },
+  currentTurn: {
+    type: String,
+    enum: ALLOWED_MARKERS,
+    default: 'X'
+  },
 
   status: {
     type: String,
-    enum: ['WAITING', 'PLAYING', 'CLOSED']
+    enum: ['WAITING', 'PLAYING', 'CLOSED'],
+    default: 'WAITING'
   },
 
-  chat: [ChatSchema], // 🔥 Ultimo chat
+  chat: {
+    type: [ChatSchema],
+    default: []
+  },
 
-  createdAt: Date,
-  startedAt: Date
+  createdAt: {
+    type: Date,
+    default: Date.now
+  },
 
+  startedAt: {
+    type: Date,
+    default: null
+  }
 });
 
 module.exports = mongoose.model('GameRoom', GameRoomSchema);

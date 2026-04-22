@@ -1,9 +1,17 @@
-const User = require('../../models/user.model');
+const Subscription = require('../../models/subscription');
 
-exports.findUserById = (userId) => {
-  return User.findById(userId);
-};
+async function createSubscription(data) {
+  return Subscription.create(data);
+}
 
-exports.updateUser = (user) => {
-  return user.save();
+async function getActiveSubscription(userId) {
+  return Subscription.findOne({
+    userId,
+    endDate: { $gt: new Date() }
+  });
+}
+
+module.exports = {
+  createSubscription,
+  getActiveSubscription
 };

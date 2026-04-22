@@ -1,32 +1,45 @@
-const repo = require('./subscription.repository');
+const subRepo = require('./subscription.repository');
+const walletRepo = require('../wallet/wallet.repository');
+const User = require('../../models/user');
+const { sendSubscriptionEmail } = require('../../services/email.service');
 
-const SUBSCRIPTION_PRICE = 10;
+const PRICE = 10;
 
-exports.deposit = async (userId, amount) => {
-  const user = await repo.findUserById(userId);
+async function subscribeWithWallet(userId) {
+  const wallet = await walletRepo.findByUserId(userId);
 
-  if (!user) throw new Error('User not found');
-
-  user.walletBalance += amount;
-
-  await repo.updateUser(user);
-
-  return user;
-};
-
-exports.subscribe = async (userId) => {
-  const user = await repo.findUserById(userId);
-
-  if (!user) throw new Error('User not found');
-
-  if (user.walletBalance < SUBSCRIPTION_PRICE) {
+  if (!wallet || wallet.balance < PRICE) {
     throw new Error('Not enough balance');
   }
 
-  user.walletBalance -= SUBSCRIPTION_PRICE;
-  user.isPremium = true;
+  await walletRepo.updateBalance(userId, -PRICE);
 
-  await repo.updateUser(user);
+  const startDate = new Date();
+  const endDate = new Date();
+  endDate.setMonth(endDate.getMonth() + 1);
 
-  return user;
+  await subRepo.createSubscription({
+    userId,
+    isPremium: true,
+    startDate,
+    endDate
+  });
+
+  await User.findByIdAndUpdate(userId, { isPremium: true });
+
+  const user = await User.findById(userId);
+
+  await sendSubscriptionEmail(user.email, endDate);
+
+  return { startDate, endDate };
+}
+
+async function subscribeQR(userId) {
+  // simulate QR payment success
+  return subscribeWithWallet(userId); // reuse logic
+}
+
+module.exports = {
+  subscribeWithWallet,
+  subscribeQR
 };
