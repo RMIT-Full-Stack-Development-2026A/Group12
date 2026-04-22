@@ -6,7 +6,8 @@ const {
   joinRoomController,
   getRoomController,
   startRoomController,
-  makeMoveController
+  makeMoveController,
+  getSessionByRoomController
 } = require('../controller/roomController');
 
 // Create room / game
@@ -17,6 +18,9 @@ router.post('/join/:roomCode', joinRoomController);
 
 // Get room info
 router.get('/:roomCode', getRoomController);
+
+// Get session by room code
+router.get('/:roomCode/session', getSessionByRoomController);
 
 // Start online room
 router.post('/:roomCode/start', startRoomController);

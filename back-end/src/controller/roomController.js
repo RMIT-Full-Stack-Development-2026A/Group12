@@ -89,6 +89,7 @@ const createRoomController = async (req, res) => {
         gameType: 'SINGLE',
         board: createBoard(normalizedBoardSize),
         currentTurn: normalizedMarker,
+        roomCode: null,
         status: 'PLAYING',
         winner: null,
         moves: [],
@@ -113,6 +114,7 @@ const createRoomController = async (req, res) => {
         player2Id: null,
         player1Marker: normalizedMarker,
         player2Marker: secondMarker,
+        roomCode: null,
         boardSize: normalizedBoardSize,
         gameType: 'LOCAL',
         board: createBoard(normalizedBoardSize),
@@ -156,6 +158,7 @@ const createRoomController = async (req, res) => {
       player2Id: null,
       player1Marker: normalizedMarker,
       player2Marker: null,
+      roomCode: roomCode,
       boardSize: normalizedBoardSize,
       gameType: 'ONLINE',
       board: createBoard(normalizedBoardSize),
@@ -477,7 +480,10 @@ const makeMoveController = async (req, res) => {
     await session.save();
 
     const io = getIO();
-    io.emit(`session_updated:${session._id}`, session);
+     if (session.roomCode) {
+        const io = getIO();
+        io.to(session.roomCode).emit('session_updated', session);
+    }
 
     return res.status(200).json({
       success: true,
@@ -491,11 +497,39 @@ const makeMoveController = async (req, res) => {
     });
   }
 };
+const getSessionByRoomController = async (req, res) => {
+  try {
+    const { roomCode } = req.params;
 
+    const session = await GameSession.findOne({
+      roomCode,
+      gameType: 'ONLINE',
+      endTime: null
+    }).sort({ createdAt: -1 });
+
+    if (!session) {
+      return res.status(404).json({
+        success: false,
+        message: 'Session not found'
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: session
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message || 'Get session failed'
+    });
+  }
+};
 module.exports = {
   createRoomController,
   joinRoomController,
   getRoomController,
   startRoomController,
-  makeMoveController
+  makeMoveController,
+  getSessionByRoomController
 };

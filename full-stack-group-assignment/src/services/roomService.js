@@ -19,6 +19,19 @@ async function postJson(url, body) {
   return data
 }
 
+async function getJson(url) {
+  const response = await fetch(url, {
+    method: 'GET',
+  })
+
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.message || 'Request failed')
+  }
+
+  return data
+}
+
 export const createGame = async ({
   userId,
   gameMode,
@@ -33,20 +46,25 @@ export const createGame = async ({
     boardSize,
     aiLevel,
   })
-};
+}
 
 export const joinRoom = async ({ roomCode, userId, marker }) => {
   return postJson(`${ROOMS_URL}/join/${roomCode}`, {
     userId,
     marker,
   })
-};
+}
 
 export const startRoom = async ({ roomCode, userId }) => {
   return postJson(`${ROOMS_URL}/${roomCode}/start`, {
     userId,
   })
-};
+}
+
+export const getSessionByRoom = async (roomCode) => {
+  return getJson(`${ROOMS_URL}/${roomCode}/session`)
+}
+
 export const makeMove = async ({ sessionId, row, col, marker }) => {
   return postJson(`${ROOMS_URL}/move`, {
     sessionId,
@@ -54,4 +72,4 @@ export const makeMove = async ({ sessionId, row, col, marker }) => {
     col,
     marker,
   })
-};
+}

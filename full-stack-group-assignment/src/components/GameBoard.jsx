@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { makeMove } from '../services/roomService';
 
 function GameBoard({
@@ -14,13 +14,18 @@ function GameBoard({
 }) {
   const [loadingCell, setLoadingCell] = useState(null);
   const [error, setError] = useState('');
-  const [sessionState, setSessionState] = useState(resultData?.data || null);
+  const [sessionState, setSessionState] = useState(
+    resultData?.data?.session || resultData?.data || null
+  );
+
+  useEffect(() => {
+    setSessionState(resultData?.data?.session || resultData?.data || null);
+  }, [resultData]);
 
   const sessionId =
     sessionState?._id ||
-    sessionState?.session?._id ||
-    resultData?.data?._id ||
     resultData?.data?.session?._id ||
+    resultData?.data?._id ||
     '';
 
   const board = sessionState?.board || [];
@@ -29,7 +34,8 @@ function GameBoard({
   const winner = sessionState?.winner || null;
 
   const username = currentUser?.username || 'Unknown';
-  const isFinished = status === 'WIN' || status === 'DRAW' || status === 'FINISHED';
+  const isFinished =
+    status === 'WIN' || status === 'DRAW' || status === 'FINISHED';
 
   const players = useMemo(() => {
     if (roomData?.players?.length) {
@@ -81,6 +87,10 @@ function GameBoard({
   const handleCellClick = async (index) => {
     if (!sessionId || isFinished) return;
 
+    if (marker !== currentTurn) {
+      return;
+    }
+
     const row = Math.floor(index / boardSize);
     const col = index % boardSize;
 
@@ -94,7 +104,7 @@ function GameBoard({
         sessionId,
         row,
         col,
-        marker: currentTurn
+        marker
       });
 
       setSessionState(data.data);
@@ -148,7 +158,7 @@ function GameBoard({
             key={index}
             type="button"
             onClick={() => handleCellClick(index)}
-            disabled={loadingCell === index || isFinished}
+            disabled={loadingCell === index || isFinished || marker !== currentTurn}
             style={styles.cell}
           >
             {loadingCell === index ? '...' : cell}

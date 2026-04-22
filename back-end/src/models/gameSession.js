@@ -67,6 +67,7 @@ player2Marker: {
   type: [[String]],
   default: null
 },
+roomCode: { type: String, default: null },
 currentTurn: {
   type: String,
   enum: ['X', 'O', 'A', 'B', '△', '○'],

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { createGame, joinRoom, startRoom } from '../services/roomService';
+import { createGame, getSessionByRoom, joinRoom, startRoom } from '../services/roomService';
 import socket from '../socket';
 import GameBoard from '../components/GameBoard';
 
@@ -65,41 +65,53 @@ function CreateRoomForm({ currentUser }) {
   };
 
   useEffect(() => {
-    if (!roomCode) return;
+  if (!roomCode) return;
 
-    socket.emit('join_room_channel', roomCode);
+  socket.emit('join_room_channel', roomCode);
 
-    const handleRoomUpdated = (updatedRoom) => {
-      setResultData((prev) => ({
-        ...prev,
-        data: {
-          ...(prev?.data || {}),
-          room: updatedRoom
-        }
-      }));
-    };
+  const handleRoomUpdated = (updatedRoom) => {
+    setResultData((prev) => ({
+      ...prev,
+      data: {
+        ...(prev?.data || {}),
+        room: updatedRoom
+      }
+    }));
+  };
 
-    const handleRoomStarted = (startedRoom) => {
-      setResultData((prev) => ({
-        ...prev,
-        data: {
-          ...(prev?.data || {}),
-          room: startedRoom
-        }
-      }));
+  const handleRoomStarted = (startedRoom) => {
+    setResultData((prev) => ({
+      ...prev,
+      data: {
+        ...(prev?.data || {}),
+        room: startedRoom
+      }
+    }));
 
-      setShowBoard(true);
-    };
+    setShowBoard(true);
+  };
 
-    socket.on('room_updated', handleRoomUpdated);
-    socket.on('room_started', handleRoomStarted);
+  const handleSessionUpdated = (updatedSession) => {
+    setResultData((prev) => ({
+      ...prev,
+      data: {
+        ...(prev?.data || {}),
+        session: updatedSession
+      }
+    }));
+  };
 
-    return () => {
-      socket.off('room_updated', handleRoomUpdated);
-      socket.off('room_started', handleRoomStarted);
-      socket.emit('leave_room_channel', roomCode);
-    };
-  }, [roomCode]);
+  socket.on('room_updated', handleRoomUpdated);
+  socket.on('room_started', handleRoomStarted);
+  socket.on('session_updated', handleSessionUpdated);
+
+  return () => {
+    socket.off('room_updated', handleRoomUpdated);
+    socket.off('room_started', handleRoomStarted);
+    socket.off('session_updated', handleSessionUpdated);
+    socket.emit('leave_room_channel', roomCode);
+  };
+}, [roomCode]);
 
   const handlePlay = async (e) => {
     e.preventDefault();
@@ -198,15 +210,17 @@ function CreateRoomForm({ currentUser }) {
         userId: currentUserId,
         marker: joinMarker
       });
-
+      const sessionRes = await getSessionByRoom(parsedRoomCode);
+      
       setResultData((prev) => ({
         ...prev,
         data: {
           ...(prev?.data || {}),
-          room: data.data
+          room: data.data,
+          session: sessionRes.data
         }
       }));
-
+      setMarker(joinMarker);
       setGameMode('ONLINE');
       setShowBoard(false);
       alert(data.message || 'Joined room successfully');
