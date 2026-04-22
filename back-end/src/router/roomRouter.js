@@ -7,7 +7,6 @@ const {
   getRoomController,
   startRoomController,
   makeMoveController,
-  surrenderGameController,
   getSessionByRoomController
 } = require('../controller/roomController');
 

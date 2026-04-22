@@ -78,10 +78,3 @@ export const makeMove = async ({ sessionId, row, col, marker }) => {
     marker,
   })
 }
-
-export const surrenderGame = async ({ sessionId, marker }) => {
-  return postJson(`${ROOMS_URL}/surrender`, {
-    sessionId,
-    marker,
-  })
-}
