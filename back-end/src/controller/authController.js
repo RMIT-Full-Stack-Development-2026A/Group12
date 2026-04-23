@@ -1,3 +1,14 @@
+/*
+ * PROJECT  : TicTacToang
+ * MODULE   : User Profile
+ * LAYER    : Controller
+ * FEATURE  : Edit Profile / Avatar Upload / Session History
+ * BRANCH   : nguyen
+ * AUTHOR   : Edit Profile Developer
+ * CREATED  : 2026-04-10
+ * SRS REF  : 3.1.1 / 3.2.1 / 3.1.2
+ */
+
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/user');
