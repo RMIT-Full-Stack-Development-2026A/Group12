@@ -12,6 +12,8 @@ const roomRoutes = require('./router/roomRouter');
 const { initSocket } = require('./socket');
 const walletRoutes = require('./modules/wallet/wallet.route');
 const subRoutes = require('./modules/subscription/subscription.route');
+const { startSubscriptionJob } = require('./modules/subscription/subscription.cron');
+const paymentRoutes = require('./modules/payment/payment.route');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -32,6 +34,7 @@ app.use('/api/users', userProfileRouter);
 app.use('/api/rooms', roomRoutes);
 app.use('/api/wallet', walletRoutes);
 app.use('/api/subscription', subRoutes);
+app.use('/api/payment', paymentRoutes);
 
 function startServer() {
   const server = http.createServer(app);
@@ -56,3 +59,5 @@ connectToDatabase()
     console.error('Unable to start server:', error.message);
     process.exit(1);
   });
+
+startSubscriptionJob();

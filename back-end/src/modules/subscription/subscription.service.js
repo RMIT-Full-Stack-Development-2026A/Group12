@@ -3,13 +3,17 @@ const walletRepo = require('../wallet/wallet.repository');
 const User = require('../../models/user');
 const { sendSubscriptionEmail } = require('../../services/email.service');
 
-const PRICE = 10;
+const PRICE = 100000;
 
 async function subscribeWithWallet(userId) {
-  const wallet = await walletRepo.findByUserId(userId);
+  let wallet = await walletRepo.findByUserId(userId);
 
-  if (!wallet || wallet.balance < PRICE) {
-    throw new Error('Not enough balance');
+  if (!wallet) {
+  wallet = await walletRepo.createWallet(userId);
+  }
+
+  if (wallet.balance < PRICE) {
+  throw new Error('Not enough balance');
   }
 
   await walletRepo.updateBalance(userId, -PRICE);
@@ -23,6 +27,13 @@ async function subscribeWithWallet(userId) {
     isPremium: true,
     startDate,
     endDate
+  });
+
+  await paymentRepo.createPayment({
+    userId,
+    amount: PRICE,
+    method: 'WALLET_SUBSCRIPTION',
+    status: 'SUCCESS'
   });
 
   await User.findByIdAndUpdate(userId, { isPremium: true });

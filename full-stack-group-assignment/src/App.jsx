@@ -5,12 +5,15 @@ import CreateRoomPage from './pages/CreateRoomPage'
 import HomePage from './pages/HomePage'
 import ProfilePage from './pages/ProfilePage'
 import { API_ORIGIN, TOKEN_STORAGE_KEY } from './config/appConfig'
+import FakeVNPay from './pages/FakeVNPay'
+import { useEffect } from 'react';
 
 const VIEWS = {
   HOME: 'home',
   AUTH: 'auth',
   CREATE: 'create',
   PROFILE: 'profile',
+  FAKE_VNPAY: 'fake_vnpay',
 }
 
 function App() {
@@ -84,6 +87,12 @@ function App() {
   const avatarSrc = toAssetUrl(currentUser?.avatarUrl)
   const displayName = currentUser?.username || 'Guest'
 
+  useEffect(() => {
+  if (window.location.pathname === '/fake-vnpay') {
+    setView(VIEWS.FAKE_VNPAY);
+  }
+  }, []);
+
   return (
     <div style={styles.shell}>
       <header style={styles.topbar}>
@@ -156,6 +165,10 @@ function App() {
             onRequestLogin={openAuth}
             onUserUpdated={handleUserUpdated}
           />
+        ) : null}
+
+        {view === VIEWS.FAKE_VNPAY ? (
+            <FakeVNPay />
         ) : null}
       </main>
 
