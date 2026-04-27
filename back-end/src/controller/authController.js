@@ -1,223 +1,24 @@
-/*
- * PROJECT  : TicTacToang
- * MODULE   : User Profile
- * LAYER    : Controller
- * FEATURE  : Edit Profile / Avatar Upload / Session History
- * BRANCH   : nguyen
- * AUTHOR   : Edit Profile Developer
- * CREATED  : 2026-04-10
- * SRS REF  : 3.1.1 / 3.2.1 / 3.1.2
- */
-
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
-const User = require('../models/user');
-const { COUNTRY_LIST } = require('../constants/enums');
-const PlayerPreference = require('../modules/preference/preference.model');
-const { JWT_SECRET, JWT_EXPIRES_IN } = require('../config/jwtConfig');
-
-const MAX_FAILED_LOGINS = 3;
-const LOCK_DURATION_MS = 2 * 60 * 1000;
-
-function normalizeEmail(value) {
-  return String(value).toLowerCase().trim();
-}
-
-function normalizeLoginIdentifier(email, username) {
-  return String(email || username).trim();
-}
-
-async function getSafeUser(user) {
-  const preference = await PlayerPreference.findOne({ userId: user._id }).lean();
-
-  return {
-    _id: user._id,
-    username: user.username,
-    email: user.email,
-    country: user.country,
-    avatarUrl: user.avatarUrl,
-    preference: preference
-      ? {
-          preferredMarker: preference.preferredMarker,
-          preferredBoardStyle: preference.preferredBoardStyle,
-          preferredBoardSize: preference.preferredBoardSize,
-          isVipStyle: preference.isVipStyle
-        }
-      : null,
-    role: user.role,
-    isActive: user.isActive,
-    isPremium: user.isPremium,
-    walletBalance: user.walletBalance,
-    failedLogins: user.failedLogins,
-    lockUntil: user.lockUntil,
-    createdAt: user.createdAt,
-    updatedAt: user.updatedAt
-  };
-}
+const authService = require('../services/authService');
+const {
+  mapRegisterPayload,
+  mapLoginPayload
+} = require('../dto/authDto');
 
 async function register(req, res) {
-  try {
-    const {
-      username,
-      email,
-      password,
-      country,
-      avatarUrl,
-      isActive,
-      isPremium,
-      walletBalance
-    } = req.body;
-
-    if (isActive !== undefined || isPremium !== undefined || walletBalance !== undefined) {
-      return res.status(400).json({
-        message: 'manual set of premium/status/balance is not allowed at signup'
-      });
-    }
-
-    const normalizedEmail = normalizeEmail(email);
-    const normalizedUsername = String(username).trim();
-
-    const [existingEmail, existingUsername] = await Promise.all([
-      User.findOne({ email: normalizedEmail }),
-      User.findOne({ username: normalizedUsername })
-    ]);
-
-    if (existingEmail) {
-      return res.status(409).json({ message: 'Email already exists' });
-    }
-
-    if (existingUsername) {
-      return res.status(409).json({ message: 'Username already exists' });
-    }
-
-    const passwordHash = await bcrypt.hash(password, 12);
-
-    const user = await User.create({
-      username: normalizedUsername,
-      email: normalizedEmail,
-      passwordHash,
-      country,
-      avatarUrl,
-      role: 'PLAYER',
-      failedLogins: 0,
-      lockUntil: null
-    });
-
-    const safeUser = await getSafeUser(user);
-
-    return res.status(201).json({
-      message: 'Register successful',
-      user: safeUser
-    });
-  } catch (error) {
-    if (error && error.code === 11000) {
-      if (error.keyPattern && error.keyPattern.email) {
-        return res.status(409).json({ message: 'Email already exists' });
-      }
-
-      if (error.keyPattern && error.keyPattern.username) {
-        return res.status(409).json({ message: 'Username already exists' });
-      }
-    }
-
-    return res.status(500).json({ message: 'Registration failed', error: error.message });
-  }
+  const requestDto = mapRegisterPayload(req.body);
+  const result = await authService.register(requestDto);
+  return res.status(result.statusCode).json(result.body);
 }
 
 async function login(req, res) {
-  try {
-    const { email, username, password } = req.body;
-    const loginValue = normalizeLoginIdentifier(email, username);
-    const normalizedEmail = loginValue.toLowerCase();
-
-    const user = await User.findOne({
-      $or: [
-        { email: normalizedEmail },
-        { username: loginValue }
-      ]
-    });
-    if (!user) {
-      return res.status(401).json({ message: 'Invalid username/email or password' });
-    }
-
-    if (user.isActive === false) {
-      return res.status(403).json({
-        message: 'Your account has been deactivated. Please contact support.'
-      });
-    }
-
-    const now = new Date();
-    if (user.lockUntil && user.lockUntil > now) {
-      return res.status(423).json({
-        message: 'Account locked due to 3 failed login attempts',
-        lockUntil: user.lockUntil
-      });
-    }
-
-    if (user.lockUntil && user.lockUntil <= now) {
-      user.failedLogins = 0;
-      user.lockUntil = null;
-    }
-
-    const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
-
-    if (!isPasswordValid) {
-      user.failedLogins = (user.failedLogins || 0) + 1;
-
-      if (user.failedLogins >= MAX_FAILED_LOGINS) {
-        user.failedLogins = 0;
-        user.lockUntil = new Date(Date.now() + LOCK_DURATION_MS);
-      }
-
-      await user.save();
-
-      if (user.lockUntil) {
-        return res.status(423).json({
-          message: 'Account locked for 2 minutes after 3 failed attempts',
-          lockUntil: user.lockUntil
-        });
-      }
-
-      return res.status(401).json({
-        message: 'Invalid username/email or password',
-        failedLogins: user.failedLogins
-      });
-    }
-
-    user.failedLogins = 0;
-    user.lockUntil = null;
-    await user.save();
-
-    if (!JWT_SECRET) {
-      return res.status(500).json({
-        message: 'Login failed',
-        error: 'JWT secret is not configured'
-      });
-    }
-
-    const token = jwt.sign(
-      {
-        userId: user._id.toString(),
-        role: user.role
-      },
-      JWT_SECRET,
-      { expiresIn: JWT_EXPIRES_IN }
-    );
-
-    const safeUser = await getSafeUser(user);
-
-    return res.status(200).json({
-      message: 'Login successful',
-      token,
-      user: safeUser
-    });
-  } catch (error) {
-    return res.status(500).json({ message: 'Login failed', error: error.message });
-  }
+  const requestDto = mapLoginPayload(req.body);
+  const result = await authService.login(requestDto);
+  return res.status(result.statusCode).json(result.body);
 }
 
 function getCountryList(req, res) {
-  return res.status(200).json({ countries: COUNTRY_LIST });
+  const result = authService.getCountryList();
+  return res.status(result.statusCode).json(result.body);
 }
 
 module.exports = {

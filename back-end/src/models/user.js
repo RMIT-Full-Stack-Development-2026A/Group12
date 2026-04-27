@@ -35,12 +35,6 @@ const UserSchema = new mongoose.Schema({
   isActive: {
     type: Boolean,
     default: true
-  },
-
-  preferences: {
-    boardSize: Number,
-    theme: String,
-    marker: String
   }
 
 }, { timestamps: true });

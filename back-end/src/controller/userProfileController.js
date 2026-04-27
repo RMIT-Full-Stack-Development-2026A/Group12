@@ -15,12 +15,8 @@ const bcrypt = require('bcryptjs');
 const multer = require('multer');
 const sharp = require('sharp');
 const mongoose = require('mongoose');
-const PlayerPreference = require('../models/playerPreference');
 const {
   COUNTRY_LIST,
-  MARKER_OPTIONS,
-  BOARD_STYLES,
-  BOARD_SIZES,
   AI_BOT_NAMES
 } = require('../constants/enums');
 
@@ -97,20 +93,7 @@ function toObjectIdString(value) {
   return String(value);
 }
 
-function mapPreference(user, preference) {
-  if (!preference) {
-    return null;
-  }
-
-  return {
-    preferredMarker: preference.preferredMarker,
-    preferredBoardStyle: preference.preferredBoardStyle,
-    preferredBoardSize: preference.preferredBoardSize,
-    isVipStyle: user.isPremium ? Boolean(preference.isVipStyle) : false
-  };
-}
-
-function toUserProfileDTO(user, preference) {
+function toUserProfileDTO(user) {
   return {
     userId: user._id.toString(),
     username: user.username,
@@ -118,8 +101,7 @@ function toUserProfileDTO(user, preference) {
     country: user.country,
     avatarUrl: user.avatarUrl || null,
     isPremium: Boolean(user.isPremium),
-    role: user.role,
-    preference: mapPreference(user, preference)
+    role: user.role
   };
 }
 
@@ -232,58 +214,6 @@ function validateCountry(country) {
   return null;
 }
 
-function validatePreferredMarker(marker) {
-  if (!MARKER_OPTIONS.includes(marker)) {
-    return createValidationError(
-      'preferredMarker',
-      'Marker must be one of the 6 available options',
-      'Marker is outside allowed enum values',
-      MARKER_OPTIONS[0]
-    );
-  }
-
-  return null;
-}
-
-function validatePreferredBoardStyle(style) {
-  if (!BOARD_STYLES.includes(style)) {
-    return createValidationError(
-      'preferredBoardStyle',
-      'Board style must be 1, 2, or 3',
-      'Board style is outside allowed enum values',
-      '2'
-    );
-  }
-
-  return null;
-}
-
-function validatePreferredBoardSize(size) {
-  if (!BOARD_SIZES.includes(size)) {
-    return createValidationError(
-      'preferredBoardSize',
-      'Board size must be either 10x10 or 15x15',
-      'Board size is outside allowed enum values',
-      '10x10'
-    );
-  }
-
-  return null;
-}
-
-function validateIsVipStyle(isVipStyle) {
-  if (typeof isVipStyle !== 'boolean') {
-    return createValidationError(
-      'isVipStyle',
-      'isVipStyle must be true or false',
-      'isVipStyle is not a boolean value',
-      'true'
-    );
-  }
-
-  return null;
-}
-
 function validateUpdatePayload(payload) {
   const errors = [];
 
@@ -292,13 +222,7 @@ function validateUpdatePayload(payload) {
     payload.password !== undefined ||
     payload.country !== undefined;
 
-  const hasPreferenceField =
-    payload.preferredMarker !== undefined ||
-    payload.preferredBoardStyle !== undefined ||
-    payload.preferredBoardSize !== undefined ||
-    payload.isVipStyle !== undefined;
-
-  if (!hasUserField && !hasPreferenceField) {
+  if (!hasUserField) {
     errors.push(
       createValidationError(
         'body',
@@ -325,34 +249,6 @@ function validateUpdatePayload(payload) {
     const countryError = validateCountry(payload.country);
     if (countryError) {
       errors.push(countryError);
-    }
-  }
-
-  if (payload.preferredMarker !== undefined) {
-    const markerError = validatePreferredMarker(payload.preferredMarker);
-    if (markerError) {
-      errors.push(markerError);
-    }
-  }
-
-  if (payload.preferredBoardStyle !== undefined) {
-    const styleError = validatePreferredBoardStyle(payload.preferredBoardStyle);
-    if (styleError) {
-      errors.push(styleError);
-    }
-  }
-
-  if (payload.preferredBoardSize !== undefined) {
-    const sizeError = validatePreferredBoardSize(payload.preferredBoardSize);
-    if (sizeError) {
-      errors.push(sizeError);
-    }
-  }
-
-  if (payload.isVipStyle !== undefined) {
-    const vipError = validateIsVipStyle(payload.isVipStyle);
-    if (vipError) {
-      errors.push(vipError);
     }
   }
 
@@ -623,8 +519,7 @@ async function getProfileByUserId(userId) {
     throw createAppError(404, 'User not found');
   }
 
-  const preference = await PlayerPreference.findOne({ userId }).exec();
-  return toUserProfileDTO(user, preference);
+  return toUserProfileDTO(user);
 }
 
 async function updateProfileByUserId(userId, body) {
@@ -641,11 +536,7 @@ async function updateProfileByUserId(userId, body) {
     username: body?.username,
     password: body?.password,
     confirmPassword: body?.confirmPassword,
-    country: body?.country,
-    preferredMarker: body?.preferredMarker,
-    preferredBoardStyle: body?.preferredBoardStyle,
-    preferredBoardSize: body?.preferredBoardSize,
-    isVipStyle: body?.isVipStyle
+    country: body?.country
   };
 
   const validationErrors = validateUpdatePayload(payload);
@@ -688,45 +579,7 @@ async function updateProfileByUserId(userId, body) {
     ).exec();
   }
 
-  const preferenceUpdate = {};
-  if (payload.preferredMarker !== undefined) {
-    preferenceUpdate.preferredMarker = payload.preferredMarker;
-  }
-  if (payload.preferredBoardStyle !== undefined) {
-    preferenceUpdate.preferredBoardStyle = payload.preferredBoardStyle;
-  }
-  if (payload.preferredBoardSize !== undefined) {
-    preferenceUpdate.preferredBoardSize = payload.preferredBoardSize;
-  }
-  if (payload.isVipStyle !== undefined) {
-    preferenceUpdate.isVipStyle = payload.isVipStyle;
-  }
-
-  let preference = await PlayerPreference.findOne({ userId }).exec();
-  if (Object.keys(preferenceUpdate).length > 0) {
-    if (preferenceUpdate.isVipStyle === true && !updatedUser.isPremium) {
-      throw createAppError(403, 'Forbidden', [
-        {
-          field: 'isVipStyle',
-          message: 'VIP Style is only available for Premium subscribers.',
-          cause: 'Your account does not have an active Premium subscription.',
-          example: 'Subscribe to Premium first, then enable VIP Style.'
-        }
-      ]);
-    }
-
-    if (updatedUser.isPremium !== true) {
-      preferenceUpdate.isVipStyle = false;
-    }
-
-    preference = await PlayerPreference.findOneAndUpdate(
-      { userId },
-      { $set: preferenceUpdate, $setOnInsert: { userId } },
-      { returnDocument: 'after', upsert: true }
-    ).exec();
-  }
-
-  return toUserProfileDTO(updatedUser, preference);
+  return toUserProfileDTO(updatedUser);
 }
 
 async function updateAvatarByUserId(userId, file) {

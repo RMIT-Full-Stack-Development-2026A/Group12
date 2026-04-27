@@ -1,11 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { API_ORIGIN, API_ROOT_URL, FALLBACK_COUNTRIES } from '../config/appConfig'
 import {
-  PROFILE_BOARD_SIZES,
-  PROFILE_BOARD_STYLES,
-  PROFILE_MARKERS,
-} from '../constants/profileOptions'
-import {
   deleteSessionHistoryItem,
   getSessionHistory,
   getUserProfile,
@@ -26,10 +21,6 @@ function ProfilePage({ currentUser, onRequestLogin, onUserUpdated }) {
   const [email, setEmail] = useState(currentUser?.email || '')
   const [username, setUsername] = useState(currentUser?.username || '')
   const [country, setCountry] = useState(currentUser?.country || '')
-
-  const [preferredMarker, setPreferredMarker] = useState('')
-  const [preferredBoardStyle, setPreferredBoardStyle] = useState('')
-  const [preferredBoardSize, setPreferredBoardSize] = useState('')
 
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -108,14 +99,6 @@ function ProfilePage({ currentUser, onRequestLogin, onUserUpdated }) {
         setEmail(data.email || '')
         setUsername(data.username || '')
         setCountry(data.country || '')
-        setPreferredMarker(data.preference?.preferredMarker || '')
-        setPreferredBoardStyle(
-          data.preference?.preferredBoardStyle !== undefined &&
-            data.preference?.preferredBoardStyle !== null
-            ? String(data.preference.preferredBoardStyle)
-            : ''
-        )
-        setPreferredBoardSize(data.preference?.preferredBoardSize || '')
       } catch (error) {
         if (!active) return
         setMessage(error.message || 'Failed to load profile')
@@ -233,16 +216,6 @@ function ProfilePage({ currentUser, onRequestLogin, onUserUpdated }) {
         country,
       }
 
-      if (preferredMarker) {
-        payload.preferredMarker = preferredMarker
-      }
-      if (preferredBoardStyle) {
-        payload.preferredBoardStyle = Number(preferredBoardStyle)
-      }
-      if (preferredBoardSize) {
-        payload.preferredBoardSize = preferredBoardSize
-      }
-
       const updated = await updateUserProfile(userId, {
         ...payload,
       })
@@ -268,14 +241,6 @@ function ProfilePage({ currentUser, onRequestLogin, onUserUpdated }) {
     setEmail(profile?.email || currentUser?.email || '')
     setUsername(profile?.username || currentUser?.username || '')
     setCountry(profile?.country || currentUser?.country || '')
-    setPreferredMarker(profile?.preference?.preferredMarker || '')
-    setPreferredBoardStyle(
-      profile?.preference?.preferredBoardStyle !== undefined &&
-        profile?.preference?.preferredBoardStyle !== null
-        ? String(profile.preference.preferredBoardStyle)
-        : ''
-    )
-    setPreferredBoardSize(profile?.preference?.preferredBoardSize || '')
   }
 
   async function savePassword() {
@@ -511,58 +476,6 @@ function ProfilePage({ currentUser, onRequestLogin, onUserUpdated }) {
                       {countriesMemo.map((c) => (
                         <option key={c} value={c}>
                           {c}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div style={styles.divider} />
-
-                  <h3 style={styles.subTitle}>Personal Preference</h3>
-
-                  <div style={styles.row}>
-                    <div style={styles.label}>Preferred marker:</div>
-                    <select
-                      value={preferredMarker}
-                      onChange={(e) => setPreferredMarker(e.target.value)}
-                      style={styles.select}
-                    >
-                      <option value="">Select marker</option>
-                      {PROFILE_MARKERS.map((m) => (
-                        <option key={m} value={m}>
-                          {m}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div style={styles.row}>
-                    <div style={styles.label}>Board style:</div>
-                    <select
-                      value={preferredBoardStyle}
-                      onChange={(e) => setPreferredBoardStyle(e.target.value)}
-                      style={styles.select}
-                    >
-                      <option value="">Select style</option>
-                      {PROFILE_BOARD_STYLES.map((s) => (
-                        <option key={s} value={s}>
-                          {s}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div style={styles.row}>
-                    <div style={styles.label}>Board size:</div>
-                    <select
-                      value={preferredBoardSize}
-                      onChange={(e) => setPreferredBoardSize(e.target.value)}
-                      style={styles.select}
-                    >
-                      <option value="">Select board size</option>
-                      {PROFILE_BOARD_SIZES.map((size) => (
-                        <option key={size} value={size}>
-                          {size}
                         </option>
                       ))}
                     </select>

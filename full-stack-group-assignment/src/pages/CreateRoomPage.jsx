@@ -1,9 +1,9 @@
 import CreateRoomForm from '../components/CreateRoomForm'
 
-function CreateRoomPage({ currentUser }) {
+function CreateRoomPage({ currentUser, onRequireLogin }) {
   return (
     <div style={styles.page}>
-      <CreateRoomForm currentUser={currentUser} />
+      <CreateRoomForm currentUser={currentUser} onRequireLogin={onRequireLogin} />
     </div>
   )
 }

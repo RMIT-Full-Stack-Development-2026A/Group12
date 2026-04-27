@@ -18,7 +18,7 @@ function readDraftValue() {
   }
 }
 
-function CreateRoomForm({ currentUser }) {
+function CreateRoomForm({ currentUser, onRequireLogin }) {
   const draft = readDraftValue();
 
   const [gameMode, setGameMode] = useState(draft?.gameMode || '');
@@ -179,8 +179,11 @@ function CreateRoomForm({ currentUser }) {
   const handlePlay = async (e) => {
     e.preventDefault();
 
-    if (!currentUserId) {
-      setError('Cannot find current user ID. Please login again.');
+    if (gameMode === 'ONLINE' && !currentUserId) {
+      setError('You have to login first to play online.');
+      if (onRequireLogin) {
+        onRequireLogin();
+      }
       return;
     }
 
@@ -201,7 +204,7 @@ function CreateRoomForm({ currentUser }) {
       setShowBoard(false);
 
       const data = await createGame({
-        userId: currentUserId,
+        userId: currentUserId || null,
         gameMode,
         marker,
         boardSize: Number(boardSize),
@@ -255,7 +258,10 @@ function CreateRoomForm({ currentUser }) {
 
   const handleJoinRoom = async (codeOverride) => {
     if (!currentUserId) {
-      setError('Cannot find current user ID. Please login again.');
+      setError('You have to login first to play online.');
+      if (onRequireLogin) {
+        onRequireLogin();
+      }
       return;
     }
 
@@ -302,6 +308,14 @@ function CreateRoomForm({ currentUser }) {
   };
 
   const handleStartRoom = async () => {
+    if (!currentUserId) {
+      setError('You have to login first to play online.');
+      if (onRequireLogin) {
+        onRequireLogin();
+      }
+      return;
+    }
+
     if (!roomCode) {
       setError('Room code not found');
       return;
@@ -357,7 +371,7 @@ function CreateRoomForm({ currentUser }) {
 };
 
 const handlePlayAgain = async () => {
-  if (!gameMode || !marker || !boardSize || !currentUserId) {
+  if (!gameMode || !marker || !boardSize) {
     resetToCreateGame();
     return;
   }
@@ -373,7 +387,7 @@ const handlePlayAgain = async () => {
     setShowBoard(false);
 
     const data = await createGame({
-      userId: currentUserId,
+      userId: currentUserId || null,
       gameMode,
       marker,
       boardSize: Number(boardSize),
@@ -423,11 +437,13 @@ const handlePlayAgain = async () => {
 
           <div style={styles.resultBox}>
             <p><strong>Current User</strong></p>
-            <p>Username: {currentUsername || 'Unknown'}</p>
-            <p>User ID: {currentUserId || 'Not found'}</p>
-            <button type="button" onClick={handleCopyUserId} style={styles.copyUserButton}>
-              Copy User ID
-            </button>
+            <p>Username: {currentUsername || 'Anonymous'}</p>
+            <p>User ID: {currentUserId || 'N/A (Guest mode)'}</p>
+            {currentUserId ? (
+              <button type="button" onClick={handleCopyUserId} style={styles.copyUserButton}>
+                Copy User ID
+              </button>
+            ) : null}
           </div>
 
           <form onSubmit={handlePlay} style={styles.form}>

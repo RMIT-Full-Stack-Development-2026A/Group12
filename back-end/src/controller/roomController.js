@@ -1,7 +1,6 @@
 const GameRoom = require('../models/gameRoom');
 const GameSession = require('../models/gameSession');
 const User = require('../models/user');
-const PlayerPreference = require('../modules/preference/preference.model');
 const { getIO } = require('../socket');
 const { createBoard, placeMarker, getGameStatus } = require('../utils/board');
 
@@ -12,71 +11,40 @@ const ALLOWED_AI_LEVELS = ['easy', 'medium', 'hard'];
 
 const pickOtherMarker = (marker) => ALLOWED_MARKERS.find((item) => item !== marker) || 'O';
 
-const BOARD_STYLE_LABELS = {
-  1: 'Classic',
-  2: 'Aurora',
-  3: 'Contrast'
-};
-
-const normalizeBoardStyle = (value) => {
-  const style = Number(value);
-  return [1, 2, 3].includes(style) ? style : 1;
-};
-
-const buildPreferenceMap = async (userIds = []) => {
+const buildPlayerIdentityMap = async (userIds = []) => {
   const uniqueIds = [...new Set(userIds.filter(Boolean).map((value) => String(value)))];
 
   if (uniqueIds.length === 0) {
     return new Map();
   }
 
-  const [users, preferences] = await Promise.all([
-    User.find({ _id: { $in: uniqueIds } }).select('username email avatarUrl').lean(),
-    PlayerPreference.find({ userId: { $in: uniqueIds } }).lean()
-  ]);
+  const users = await User.find({ _id: { $in: uniqueIds } }).select('username email avatarUrl').lean();
 
   const userMap = new Map(users.map((user) => [String(user._id), user]));
-  const preferenceMap = new Map(
-    preferences.map((preference) => {
-      const boardStyle = normalizeBoardStyle(preference.preferredBoardStyle);
-      return [
-        String(preference.userId),
-        {
-          preferredMarker: preference.preferredMarker,
-          preferredBoardStyle: boardStyle,
-          preferredBoardSize: preference.preferredBoardSize,
-          isVipStyle: Boolean(preference.isVipStyle),
-          boardStyleLabel: BOARD_STYLE_LABELS[boardStyle]
-        }
-      ];
-    })
-  );
 
   const playerMap = new Map();
 
   uniqueIds.forEach((id) => {
     const user = userMap.get(id) || null;
-    const preference = preferenceMap.get(id) || null;
     playerMap.set(id, {
       _id: id,
       username: user?.username || null,
       email: user?.email || null,
-      avatarUrl: user?.avatarUrl || null,
-      preference
+      avatarUrl: user?.avatarUrl || null
     });
   });
 
   return playerMap;
 };
 
-const enrichRoomWithPreferences = async (room) => {
+const enrichRoomWithUsers = async (room) => {
   if (!room) {
     return room;
   }
 
   const plainRoom = typeof room.toObject === 'function' ? room.toObject() : room;
   const playerIds = (plainRoom.players || []).map((player) => player.userId);
-  const playerMap = await buildPreferenceMap(playerIds);
+  const playerMap = await buildPlayerIdentityMap(playerIds);
 
   return {
     ...plainRoom,
@@ -855,19 +823,20 @@ const generateUniqueRoomCode = async () => {
 const createRoomController = async (req, res) => {
   try {
     const userId = req.body.userId;
+    const normalizedUserId = userId || null;
     const { gameMode, marker, boardSize, aiLevel, player2Marker, starterMarker } = req.body;
-
-    if (!userId) {
-      return res.status(401).json({
-        success: false,
-        message: 'userId is required'
-      });
-    }
 
     if (!ALLOWED_GAME_MODES.includes(gameMode)) {
       return res.status(400).json({
         success: false,
         message: 'gameMode must be LOCAL, SINGLE, or ONLINE'
+      });
+    }
+
+    if (gameMode === 'ONLINE' && !normalizedUserId) {
+      return res.status(401).json({
+        success: false,
+        message: 'userId is required for online mode'
       });
     }
 
@@ -902,7 +871,7 @@ const createRoomController = async (req, res) => {
         : normalizedMarker;
 
       const session = await GameSession.create({
-        player1Id: userId,
+        player1Id: normalizedUserId,
         player2Id: null,
         player1Marker: normalizedMarker,
         player2Marker: botMarker,
@@ -955,7 +924,7 @@ const createRoomController = async (req, res) => {
       }
 
       const session = await GameSession.create({
-        player1Id: userId,
+        player1Id: normalizedUserId,
         player2Id: null,
         player1Marker: normalizedMarker,
         player2Marker: normalizedSecondMarker,
@@ -985,7 +954,7 @@ const createRoomController = async (req, res) => {
       roomCode,
       players: [
         {
-          userId,
+          userId: normalizedUserId,
           mark: normalizedMarker,
           connected: true
         }
@@ -999,7 +968,7 @@ const createRoomController = async (req, res) => {
     });
 
     const session = await GameSession.create({
-      player1Id: userId,
+      player1Id: normalizedUserId,
       player2Id: null,
       player1Marker: normalizedMarker,
       player2Marker: null,
@@ -1016,7 +985,7 @@ const createRoomController = async (req, res) => {
       endTime: null
     });
 
-    const roomPayload = await enrichRoomWithPreferences(room);
+    const roomPayload = await enrichRoomWithUsers(room);
 
     return res.status(201).json({
       success: true,
@@ -1122,7 +1091,7 @@ const joinRoomController = async (req, res) => {
       await session.save();
     }
 
-    const roomPayload = await enrichRoomWithPreferences(room);
+    const roomPayload = await enrichRoomWithUsers(room);
 
     const io = getIO();
     io.to(roomCode).emit('room_updated', roomPayload);
@@ -1153,7 +1122,7 @@ const getRoomController = async (req, res) => {
       });
     }
 
-    const roomPayload = await enrichRoomWithPreferences(room);
+    const roomPayload = await enrichRoomWithUsers(room);
 
     return res.status(200).json({
       success: true,
@@ -1240,7 +1209,7 @@ const startRoomController = async (req, res) => {
       await room.save();
     }
 
-    const roomPayload = await enrichRoomWithPreferences(room);
+    const roomPayload = await enrichRoomWithUsers(room);
 
     const io = getIO();
     io.to(roomCode).emit('room_started', roomPayload);

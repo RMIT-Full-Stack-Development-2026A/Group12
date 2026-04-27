@@ -102,7 +102,7 @@ function GameBoard({
   const status = sessionState?.status || 'PLAYING';
   const winner = sessionState?.winner || null;
   const aiLevel = sessionState?.aiLevel || resultData?.data?.session?.aiLevel || null;
-  const currentStyleId = getStyleId(currentUser?.preference?.preferredBoardStyle);
+  const currentStyleId = 1;
   const currentTheme = getStyleTheme(currentStyleId);
 
   const username = currentUser?.username || 'Unknown';
@@ -114,7 +114,7 @@ function GameBoard({
     if (roomData?.players?.length) {
       return roomData.players.map((player, index) => {
         const user = typeof player.userId === 'object' ? player.userId : null;
-        const styleId = getStyleId(user?.preference?.preferredBoardStyle || currentStyleId);
+        const styleId = currentStyleId;
 
         return {
           label: `Player ${index + 1}`,
