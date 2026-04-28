@@ -2,7 +2,7 @@ const authService = require('../services/authService');
 const {
   mapRegisterPayload,
   mapLoginPayload
-} = require('../dto/authDto');
+} = require('../dtos/authDto');
 
 async function register(req, res) {
   const requestDto = mapRegisterPayload(req.body);

@@ -1,13 +1,13 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
-const authRepository = require('../repository/authRepository');
+const authRepository = require('../repositories/authRepository');
 const { COUNTRY_LIST } = require('../constants/enums');
 const { JWT_SECRET, JWT_EXPIRES_IN } = require('../config/jwtConfig');
 const {
   makeResult,
   mapSafeUser
-} = require('../dto/authDto');
+} = require('../dtos/authDto');
 
 const MAX_FAILED_LOGINS = 3;
 const LOCK_DURATION_MS = 2 * 60 * 1000;
