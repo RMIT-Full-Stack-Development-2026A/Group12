@@ -11,6 +11,8 @@ const validateCreateRoomDto = (body) => {
   const marker = String(body.marker || '').trim();
   const boardSize = Number(body.boardSize);
   const aiLevel = body.aiLevel || 'easy';
+  const starterMarkerRaw = String(body.starterMarker || '').trim();
+  const starterMarker = starterMarkerRaw || null;
 
   if (!ALLOWED_GAME_MODES.includes(gameMode)) {
     return { error: 'gameMode must be LOCAL, SINGLE, or ONLINE' };
@@ -32,13 +34,18 @@ const validateCreateRoomDto = (body) => {
     return { error: 'aiLevel must be easy, medium, or hard' };
   }
 
+  if (starterMarker && !ALLOWED_MARKERS.includes(starterMarker)) {
+    return { error: `starterMarker must be one of: ${ALLOWED_MARKERS.join(', ')}` };
+  }
+
   return {
     value: {
       userId,
       gameMode,
       marker,
       boardSize,
-      aiLevel
+      aiLevel,
+      starterMarker
     }
   };
 };

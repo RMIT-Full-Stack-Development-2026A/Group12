@@ -449,6 +449,7 @@ function ProfilePage({ currentUser, onRequestLogin, onUserUpdated }) {
               </aside>
 
               <section style={styles.rightPane}>
+                <h3 style={styles.subTitle}>Personal Infos</h3>
                 <div style={styles.section}>
                   <div style={styles.row}>
                     <div style={styles.label}>Email:</div>

@@ -20,6 +20,8 @@ function OnlineRoomLobby({
   onCopyUserId,
   error,
   infoMessage,
+  nextStarterRole,
+  setNextStarterRole,
   styles,
 }) {
   return (
@@ -101,6 +103,21 @@ function OnlineRoomLobby({
 
       {error && <p style={styles.error}>{error}</p>}
       {infoMessage && <p style={styles.info}>{infoMessage}</p>}
+
+      {isHost ? (
+        <div style={styles.row}>
+          <div style={styles.labelBox}>Play at :</div>
+          <select
+            value={nextStarterRole}
+            onChange={(e) => setNextStarterRole(e.target.value)}
+            style={styles.select}
+            disabled={!hasTwoPlayers || starting}
+          >
+            <option value="PLAYER1">Turn 1</option>
+            <option value="PLAYER2">Turn 2</option>
+          </select>
+        </div>
+      ) : null}
 
       {isHost ? (
         <button

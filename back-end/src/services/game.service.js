@@ -28,6 +28,617 @@ const getAlternativeMarker = (marker) => {
   return ALLOWED_MARKERS.find((item) => item !== marker) || 'O';
 };
 
+const isValidBoard = (board) => (
+  Array.isArray(board)
+  && board.length > 0
+  && board.every((row) => Array.isArray(row) && row.length === board.length)
+);
+
+const cloneBoard = (board) => board.map((row) => [...row]);
+
+const candidateCells = (board, radius = 2) => {
+  if (!isValidBoard(board)) {
+    return [];
+  }
+
+  const size = board.length;
+  const occupied = [];
+
+  board.forEach((row, rowIndex) => {
+    row.forEach((cell, colIndex) => {
+      if (cell) {
+        occupied.push({ rowIndex, colIndex });
+      }
+    });
+  });
+
+  if (occupied.length === 0) {
+    const center = Math.floor(size / 2);
+    return [{ rowIndex: center, colIndex: center }];
+  }
+
+  const candidates = new Map();
+
+  occupied.forEach(({ rowIndex, colIndex }) => {
+    for (let row = Math.max(0, rowIndex - radius); row <= Math.min(size - 1, rowIndex + radius); row += 1) {
+      for (let col = Math.max(0, colIndex - radius); col <= Math.min(size - 1, colIndex + radius); col += 1) {
+        if (!board[row][col]) {
+          candidates.set(`${row},${col}`, { rowIndex: row, colIndex: col });
+        }
+      }
+    }
+  });
+
+  return [...candidates.values()];
+};
+
+const createEmptyBoardCells = (board) => {
+  if (!isValidBoard(board)) {
+    return [];
+  }
+
+  const cells = [];
+  board.forEach((row, rowIndex) => {
+    row.forEach((cell, colIndex) => {
+      if (!cell) {
+        cells.push({ rowIndex, colIndex });
+      }
+    });
+  });
+
+  return cells;
+};
+
+const getTargetLength = (board) => (board.length === 3 ? 3 : 5);
+
+const evaluateWindow = (windowCells, marker, target) => {
+  const opponentCount = windowCells.filter((cell) => cell && cell !== marker).length;
+  if (opponentCount > 0) {
+    return 0;
+  }
+
+  const markerCount = windowCells.filter((cell) => cell === marker).length;
+  const emptyCount = windowCells.filter((cell) => !cell).length;
+
+  if (markerCount === target) return 1000000;
+  if (markerCount === target - 1 && emptyCount === 1) return 100000;
+  if (markerCount === target - 2 && emptyCount === 2) return 10000;
+  if (markerCount > 0) return markerCount * 20;
+
+  return 0;
+};
+
+const evaluateBoardForMarker = (board, marker) => {
+  const size = board.length;
+  const target = getTargetLength(board);
+  let score = 0;
+
+  const addLineScore = (cells) => {
+    if (cells.length < target) {
+      return;
+    }
+
+    for (let i = 0; i <= cells.length - target; i += 1) {
+      score += evaluateWindow(cells.slice(i, i + target), marker, target);
+    }
+  };
+
+  for (let r = 0; r < size; r += 1) {
+    addLineScore(board[r]);
+  }
+
+  for (let c = 0; c < size; c += 1) {
+    addLineScore(board.map((row) => row[c]));
+  }
+
+  for (let start = 0; start < size; start += 1) {
+    const diag = [];
+    const antiDiag = [];
+
+    for (let row = start, col = 0; row < size && col < size; row += 1, col += 1) {
+      diag.push(board[row][col]);
+    }
+
+    for (let row = start, col = size - 1; row < size && col >= 0; row += 1, col -= 1) {
+      antiDiag.push(board[row][col]);
+    }
+
+    addLineScore(diag);
+    addLineScore(antiDiag);
+  }
+
+  for (let startCol = 1; startCol < size; startCol += 1) {
+    const diag = [];
+    const antiDiag = [];
+
+    for (let row = 0, col = startCol; row < size && col < size; row += 1, col += 1) {
+      diag.push(board[row][col]);
+    }
+
+    for (let row = 0, col = startCol; row < size && col >= 0; row += 1, col -= 1) {
+      antiDiag.push(board[row][col]);
+    }
+
+    addLineScore(diag);
+    addLineScore(antiDiag);
+  }
+
+  return score;
+};
+
+const getPatternInsight = (board, row, col, marker) => {
+  const tempBoard = cloneBoard(board);
+  tempBoard[row][col] = marker;
+
+  const size = board.length;
+  const target = getTargetLength(board);
+  const directions = [
+    [0, 1],
+    [1, 0],
+    [1, 1],
+    [1, -1]
+  ];
+
+  let openLines = 0;
+
+  directions.forEach(([dx, dy]) => {
+    let count = 1;
+    let openEnds = 0;
+
+    let r = row + dx;
+    let c = col + dy;
+    while (r >= 0 && r < size && c >= 0 && c < size && tempBoard[r][c] === marker) {
+      count += 1;
+      r += dx;
+      c += dy;
+    }
+    if (r >= 0 && r < size && c >= 0 && c < size && tempBoard[r][c] === '') {
+      openEnds += 1;
+    }
+
+    r = row - dx;
+    c = col - dy;
+    while (r >= 0 && r < size && c >= 0 && c < size && tempBoard[r][c] === marker) {
+      count += 1;
+      r -= dx;
+      c -= dy;
+    }
+    if (r >= 0 && r < size && c >= 0 && c < size && tempBoard[r][c] === '') {
+      openEnds += 1;
+    }
+
+    if (count >= target - 1 && openEnds >= 1) {
+      openLines += 1;
+    }
+  });
+
+  return {
+    attackScore: evaluateBoardForMarker(tempBoard, marker),
+    openLines
+  };
+};
+
+const findWinningMove = (board, marker, cells = candidateCells(board)) => {
+  for (const cell of cells) {
+    const tempBoard = cloneBoard(board);
+    tempBoard[cell.rowIndex][cell.colIndex] = marker;
+    const status = getGameStatus(tempBoard, cell.rowIndex, cell.colIndex);
+    if (status.status === 'WIN') {
+      return cell;
+    }
+  }
+
+  return null;
+};
+
+const scoreCandidateCell = (board, rowIndex, colIndex, botMarker, opponentMarker) => {
+  const attack = getPatternInsight(board, rowIndex, colIndex, botMarker);
+  const defense = getPatternInsight(board, rowIndex, colIndex, opponentMarker);
+
+  return attack.attackScore + defense.attackScore + attack.openLines * 2000 + defense.openLines * 2500;
+};
+
+const getTopScoredCells = (board, botMarker, opponentMarker, cells = candidateCells(board), limit = cells.length) => {
+  return [...cells]
+    .map((cell) => ({
+      ...cell,
+      score: scoreCandidateCell(board, cell.rowIndex, cell.colIndex, botMarker, opponentMarker)
+    }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit);
+};
+
+const getBestScoredMove = (board, botMarker, opponentMarker, cells = candidateCells(board)) => {
+  let bestScore = -Infinity;
+  let bestCells = [];
+
+  cells.forEach((cell) => {
+    const score = scoreCandidateCell(board, cell.rowIndex, cell.colIndex, botMarker, opponentMarker);
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestCells = [cell];
+    } else if (score === bestScore) {
+      bestCells.push(cell);
+    }
+  });
+
+  return bestCells[Math.floor(Math.random() * bestCells.length)] || cells[0] || null;
+};
+
+const evaluateHardBoard = (board, botMarker, opponentMarker) => {
+  const baseScore = evaluateBoardForMarker(board, botMarker) - evaluateBoardForMarker(board, opponentMarker);
+  const center = (board.length - 1) / 2;
+  let centerBonus = 0;
+  let flexibilityBonus = 0;
+
+  board.forEach((row, rowIndex) => {
+    row.forEach((cell, colIndex) => {
+      if (!cell) return;
+
+      const distance = Math.abs(rowIndex - center) + Math.abs(colIndex - center);
+      const positionScore = Math.max(0, board.length - distance);
+
+      if (cell === botMarker) {
+        centerBonus += positionScore;
+        flexibilityBonus += 1;
+      } else if (cell === opponentMarker) {
+        centerBonus -= positionScore;
+        flexibilityBonus -= 1;
+      }
+    });
+  });
+
+  return baseScore + centerBonus * 20 + flexibilityBonus * 100;
+};
+
+const minimax = (board, depth, alpha, beta, isMaximizing, botMarker, opponentMarker, options = {}) => {
+  const { deadline, maxCandidates = 20, cache = new Map() } = options;
+
+  if (deadline && Date.now() >= deadline) {
+    return {
+      score: evaluateHardBoard(board, botMarker, opponentMarker),
+      cell: null,
+      timedOut: true
+    };
+  }
+
+  const cacheKey = `${isMaximizing ? 'MAX' : 'MIN'}|${depth}|${board.map((row) => row.join('.')).join('|')}`;
+  if (cache.has(cacheKey)) {
+    return cache.get(cacheKey);
+  }
+
+  const cells = getTopScoredCells(board, botMarker, opponentMarker, candidateCells(board, 2), maxCandidates);
+  const botWinningMove = findWinningMove(board, botMarker, cells);
+  if (botWinningMove) {
+    return { score: 10000000 + depth * 1000, cell: botWinningMove, timedOut: false };
+  }
+
+  const opponentWinningMove = findWinningMove(board, opponentMarker, cells);
+  if (opponentWinningMove) {
+    return { score: -10000000 - depth * 1000, cell: opponentWinningMove, timedOut: false };
+  }
+
+  if (depth === 0 || cells.length === 0) {
+    const leaf = {
+      score: evaluateHardBoard(board, botMarker, opponentMarker),
+      cell: null,
+      timedOut: false
+    };
+    cache.set(cacheKey, leaf);
+    return leaf;
+  }
+
+  let bestCell = null;
+
+  if (isMaximizing) {
+    let bestScore = -Infinity;
+    let timedOut = false;
+    for (const cell of cells) {
+      const nextBoard = cloneBoard(board);
+      nextBoard[cell.rowIndex][cell.colIndex] = botMarker;
+      const result = minimax(nextBoard, depth - 1, alpha, beta, false, botMarker, opponentMarker, options);
+      timedOut = timedOut || Boolean(result.timedOut);
+      if (result.score > bestScore) {
+        bestScore = result.score;
+        bestCell = cell;
+      }
+      alpha = Math.max(alpha, bestScore);
+      if (beta <= alpha) {
+        break;
+      }
+    }
+
+    const maxResult = { score: bestScore, cell: bestCell, timedOut };
+    cache.set(cacheKey, maxResult);
+    return maxResult;
+  }
+
+  let bestScore = Infinity;
+  let timedOut = false;
+  for (const cell of cells) {
+    const nextBoard = cloneBoard(board);
+    nextBoard[cell.rowIndex][cell.colIndex] = opponentMarker;
+    const result = minimax(nextBoard, depth - 1, alpha, beta, true, botMarker, opponentMarker, options);
+    timedOut = timedOut || Boolean(result.timedOut);
+    if (result.score < bestScore) {
+      bestScore = result.score;
+      bestCell = cell;
+    }
+    beta = Math.min(beta, bestScore);
+    if (beta <= alpha) {
+      break;
+    }
+  }
+
+  const minResult = { score: bestScore, cell: bestCell, timedOut };
+  cache.set(cacheKey, minResult);
+  return minResult;
+};
+
+const findForkMove = (board, marker, cells = candidateCells(board, 2)) => {
+  for (const cell of cells) {
+    const tempBoard = cloneBoard(board);
+    tempBoard[cell.rowIndex][cell.colIndex] = marker;
+
+    const nextCandidates = candidateCells(tempBoard, 2);
+    let winningThreats = 0;
+
+    for (const nextCell of nextCandidates) {
+      const nextBoard = cloneBoard(tempBoard);
+      nextBoard[nextCell.rowIndex][nextCell.colIndex] = marker;
+      const status = getGameStatus(nextBoard, nextCell.rowIndex, nextCell.colIndex);
+
+      if (status.status === 'WIN') {
+        winningThreats += 1;
+      }
+
+      if (winningThreats >= 2) {
+        return cell;
+      }
+    }
+  }
+
+  return null;
+};
+
+const pickRandomCell = (cells = []) => cells[Math.floor(Math.random() * cells.length)] || null;
+
+const chooseEasyMove = (session, cells) => {
+  const board = session.board;
+  const botMarker = session.player2Marker;
+
+  const winningMove = findWinningMove(board, botMarker, cells);
+  if (winningMove && Math.random() < 0.7) {
+    return winningMove;
+  }
+
+  if ((session.moves || []).length === 0 && board.length === 3) {
+    const corners = [
+      { rowIndex: 0, colIndex: 0 },
+      { rowIndex: 0, colIndex: 2 },
+      { rowIndex: 2, colIndex: 0 },
+      { rowIndex: 2, colIndex: 2 }
+    ];
+    const corner = corners.find((cell) => cells.some((candidate) => candidate.rowIndex === cell.rowIndex && candidate.colIndex === cell.colIndex));
+    if (corner) {
+      return corner;
+    }
+  }
+
+  const localCandidates = candidateCells(board, 1);
+  if (localCandidates.length > 0 && Math.random() < 0.7) {
+    return pickRandomCell(localCandidates);
+  }
+
+  return pickRandomCell(cells);
+};
+
+const chooseMediumMove = (session, cells) => {
+  const board = session.board;
+  const botMarker = session.player2Marker;
+  const opponentMarker = session.player1Marker;
+
+  const winningMove = findWinningMove(board, botMarker, cells);
+  if (winningMove) {
+    return winningMove;
+  }
+
+  const blockingMove = findWinningMove(board, opponentMarker, cells);
+  if (blockingMove) {
+    return blockingMove;
+  }
+
+  const forkAttackMove = findForkMove(board, botMarker, cells);
+  if (forkAttackMove) {
+    return forkAttackMove;
+  }
+
+  const forkBlockMove = findForkMove(board, opponentMarker, cells);
+  if (forkBlockMove) {
+    return forkBlockMove;
+  }
+
+  const scored = getTopScoredCells(board, botMarker, opponentMarker, cells);
+  if (!scored.length) {
+    return pickRandomCell(cells);
+  }
+
+  const bestScore = scored[0].score;
+  const bestCells = scored.filter((cell) => cell.score === bestScore);
+  return pickRandomCell(bestCells);
+};
+
+const chooseHardMove = (session, cells) => {
+  const board = session.board;
+  const boardSize = board.length;
+  const botMarker = session.player2Marker;
+  const opponentMarker = session.player1Marker;
+
+  const openingCenterMap = {
+    3: [1, 1],
+    10: [4, 4],
+    15: [7, 7]
+  };
+
+  const openingCenter = openingCenterMap[boardSize];
+  const movesCount = (session.moves || []).length;
+
+  if (openingCenter && movesCount === 0) {
+    const [centerRow, centerCol] = openingCenter;
+    const centerCell = cells.find((cell) => cell.rowIndex === centerRow && cell.colIndex === centerCol);
+    if (centerCell) {
+      return centerCell;
+    }
+  }
+
+  const winningMove = findWinningMove(board, botMarker, cells);
+  if (winningMove) {
+    return winningMove;
+  }
+
+  const blockingMove = findWinningMove(board, opponentMarker, cells);
+  if (blockingMove) {
+    return blockingMove;
+  }
+
+  const forkAttackMove = findForkMove(board, botMarker, cells);
+  if (forkAttackMove) {
+    return forkAttackMove;
+  }
+
+  const forkBlockMove = findForkMove(board, opponentMarker, cells);
+  if (forkBlockMove) {
+    return forkBlockMove;
+  }
+
+  const depthMax = boardSize === 3 ? 9 : boardSize === 10 ? 6 : 5;
+  const maxCandidates = boardSize === 3 ? 9 : boardSize === 10 ? 20 : 15;
+  const deadline = Date.now() + 1900;
+  const cache = new Map();
+
+  let bestCell = getBestScoredMove(board, botMarker, opponentMarker, cells);
+
+  for (let depth = 1; depth <= depthMax; depth += 1) {
+    const searchResult = minimax(
+      board,
+      depth,
+      -Infinity,
+      Infinity,
+      true,
+      botMarker,
+      opponentMarker,
+      {
+        deadline,
+        maxCandidates,
+        cache
+      }
+    );
+
+    if (searchResult.cell) {
+      bestCell = searchResult.cell;
+    }
+
+    if (searchResult.timedOut || Date.now() >= deadline) {
+      break;
+    }
+  }
+
+  return bestCell;
+};
+
+const chooseBotMove = (session) => {
+  const board = session.board || [];
+  const botMarker = session.player2Marker;
+  const cells = candidateCells(board, 2);
+
+  if (!isValidBoard(board) || !botMarker) {
+    return null;
+  }
+
+  if (!cells.length) {
+    return null;
+  }
+
+  if (session.aiLevel === 'easy') {
+    return chooseEasyMove(session, cells);
+  }
+
+  if (session.aiLevel === 'medium') {
+    return chooseMediumMove(session, cells);
+  }
+
+  return chooseHardMove(session, cells);
+};
+
+const applyBotMoveToSession = async (session) => {
+  if (!session || session.gameType !== 'SINGLE' || session.status !== 'PLAYING') {
+    return session;
+  }
+
+  if (session.currentTurn !== session.player2Marker || !session.player2Marker) {
+    return session;
+  }
+
+  const botMove = chooseBotMove(session);
+  if (!botMove) {
+    return session;
+  }
+
+  const nextBoard = session.board.map((row) => [...row]);
+  const fallbackMove = createEmptyBoardCells(nextBoard)[0] || null;
+  const normalizedMove = (
+    botMove
+    && Number.isInteger(botMove.rowIndex)
+    && Number.isInteger(botMove.colIndex)
+    && botMove.rowIndex >= 0
+    && botMove.colIndex >= 0
+    && botMove.rowIndex < nextBoard.length
+    && botMove.colIndex < nextBoard.length
+    && !nextBoard[botMove.rowIndex][botMove.colIndex]
+  )
+    ? botMove
+    : fallbackMove;
+
+  if (!normalizedMove) {
+    return session;
+  }
+
+  placeMarker(nextBoard, normalizedMove.rowIndex, normalizedMove.colIndex, session.player2Marker);
+
+  session.board = nextBoard;
+  session.moves = [
+    ...session.moves,
+    {
+      moveNumber: session.moves.length + 1,
+      player: session.player2Marker,
+      position: `${normalizedMove.rowIndex},${normalizedMove.colIndex}`,
+      timestamp: new Date()
+    }
+  ];
+
+  const gameStatus = getGameStatus(nextBoard, normalizedMove.rowIndex, normalizedMove.colIndex);
+
+  if (gameStatus.status === 'WIN') {
+    session.status = 'WIN';
+    session.winner = gameStatus.winner;
+    session.result = 'PLAYER2_WIN';
+    session.endTime = new Date();
+  } else if (gameStatus.status === 'DRAW') {
+    session.status = 'DRAW';
+    session.winner = null;
+    session.result = 'DRAW';
+    session.endTime = new Date();
+  } else {
+    session.status = 'PLAYING';
+    session.currentTurn = session.player1Marker;
+  }
+
+  await sessionRepo.save(session);
+
+  return session;
+};
+
 const emitRoomUpdated = (roomCode, room) => {
   const io = getIO();
   io.to(roomCode).emit('room_updated', room);
@@ -49,7 +660,7 @@ const normalizeReplayRequests = (room) => {
   }
 };
 
-const createOnlineSessionFromRoom = async (room) => {
+const createOnlineSessionFromRoom = async (room, starterMarker = null) => {
   const players = room.players || [];
 
   if (players.length < 2) {
@@ -71,7 +682,7 @@ const createOnlineSessionFromRoom = async (room) => {
     boardSize: room.boardSize,
     gameType: 'ONLINE',
     board: createBoard(room.boardSize),
-    currentTurn: room.hostMarker,
+    currentTurn: starterMarker || room.hostMarker,
     status: 'PLAYING',
     winner: null,
     moves: [],
@@ -83,9 +694,12 @@ const createOnlineSessionFromRoom = async (room) => {
   return session;
 };
 
-const createRoom = async ({ userId, gameMode, marker, boardSize, aiLevel, req }) => {
+const createRoom = async ({ userId, gameMode, marker, boardSize, aiLevel, starterMarker, req }) => {
   if (gameMode === 'SINGLE') {
     const botMarker = getAlternativeMarker(marker);
+    const normalizedStarterMarker = ALLOWED_MARKERS.includes(String(starterMarker || '').trim())
+      ? String(starterMarker || '').trim()
+      : marker;
 
     const session = await sessionRepo.create({
       roomId: null,
@@ -99,7 +713,7 @@ const createRoom = async ({ userId, gameMode, marker, boardSize, aiLevel, req })
       boardSize,
       gameType: 'SINGLE',
       board: createBoard(boardSize),
-      currentTurn: marker,
+      currentTurn: normalizedStarterMarker,
       status: 'PLAYING',
       winner: null,
       moves: [],
@@ -107,6 +721,10 @@ const createRoom = async ({ userId, gameMode, marker, boardSize, aiLevel, req })
       startTime: new Date(),
       endTime: null
     });
+
+    if (session.currentTurn === session.player2Marker) {
+      await applyBotMoveToSession(session);
+    }
 
     return {
       message: 'Single game created successfully',
@@ -116,6 +734,13 @@ const createRoom = async ({ userId, gameMode, marker, boardSize, aiLevel, req })
 
   if (gameMode === 'LOCAL') {
     const secondMarker = getAlternativeMarker(marker);
+    const normalizedStarterMarker = ALLOWED_MARKERS.includes(String(starterMarker || '').trim())
+      ? String(starterMarker || '').trim()
+      : marker;
+
+    if (normalizedStarterMarker !== marker && normalizedStarterMarker !== secondMarker) {
+      throw buildError('Starter marker must belong to Player 1 or Player 2', 400);
+    }
 
     const session = await sessionRepo.create({
       roomId: null,
@@ -128,7 +753,7 @@ const createRoom = async ({ userId, gameMode, marker, boardSize, aiLevel, req })
       boardSize,
       gameType: 'LOCAL',
       board: createBoard(boardSize),
-      currentTurn: marker,
+      currentTurn: normalizedStarterMarker,
       status: 'PLAYING',
       winner: null,
       moves: [],
@@ -226,7 +851,7 @@ const joinRoom = async ({ userId, roomCode, marker }) => {
   };
 };
 
-const startRoom = async ({ userId, roomCode }) => {
+const startRoom = async ({ userId, roomCode, starterMarker }) => {
   const room = await roomRepo.findByRoomCode(roomCode);
 
   if (!room) {
@@ -253,9 +878,20 @@ const startRoom = async ({ userId, roomCode }) => {
     }
   }
 
-  const session = await createOnlineSessionFromRoom(room);
+  const hostMarker = room.players[0]?.mark;
+  const guestMarker = room.players[1]?.mark;
+  const requestedStarterMarker = String(starterMarker || '').trim();
+  const allowedStarterMarkers = [hostMarker, guestMarker].filter(Boolean);
+
+  if (requestedStarterMarker && !allowedStarterMarkers.includes(requestedStarterMarker)) {
+    throw buildError('Starter marker must belong to host or guest', 400);
+  }
+
+  const startStarterMarker = requestedStarterMarker || hostMarker;
+  const session = await createOnlineSessionFromRoom(room, startStarterMarker);
 
   room.currentSessionId = session._id;
+  room.currentTurn = startStarterMarker;
   room.status = 'PLAYING';
   room.startedAt = room.startedAt || new Date();
   room.replayRequests = [];
@@ -276,7 +912,7 @@ const startRoom = async ({ userId, roomCode }) => {
 };
 
 const makeMove = async ({ sessionId, row, col, marker }) => {
-  const session = await sessionRepo.findById(sessionId);
+  let session = await sessionRepo.findById(sessionId);
 
   if (!session) {
     throw buildError('Session not found', 404);
@@ -333,6 +969,10 @@ const makeMove = async ({ sessionId, row, col, marker }) => {
   }
 
   await sessionRepo.save(session);
+
+  if (session.gameType === 'SINGLE' && session.status === 'PLAYING' && session.currentTurn === session.player2Marker) {
+    session = await applyBotMoveToSession(session);
+  }
 
   if (session.roomId) {
     const room = await roomRepo.findById(session.roomId);

@@ -38,8 +38,7 @@ export const createGame = async ({
   marker,
   boardSize,
   aiLevel = 'easy',
-  // player2Marker,
-  // starterMarker
+  starterMarker,
 }) => {
   return postJson(`${ROOMS_URL}/create`, {
     userId,
@@ -47,6 +46,7 @@ export const createGame = async ({
     marker,
     boardSize,
     aiLevel,
+    starterMarker,
   });
 };
 //     player2Marker,
@@ -64,6 +64,7 @@ export const joinRoom = async ({ roomCode, userId, marker }) => {
 export const startRoom = async ({ roomCode, userId, starterMarker }) => {
   return postJson(`${ROOMS_URL}/${roomCode}/start`, {
     userId,
+    starterMarker,
   });
 };
 

@@ -9,6 +9,8 @@ function CreateGamePanel({
   setBoardSize,
   aiLevel,
   setAiLevel,
+  nextStarterRole,
+  setNextStarterRole,
   loading,
   onPlay,
   styles,
@@ -75,6 +77,20 @@ function CreateGamePanel({
           </select>
         </div>
       )}
+
+      {gameMode ? (
+        <div style={styles.row}>
+          <div style={styles.labelBox}>Play at :</div>
+          <select
+            value={nextStarterRole}
+            onChange={(e) => setNextStarterRole(e.target.value)}
+            style={styles.select}
+          >
+            <option value="PLAYER1">Turn 1</option>
+            <option value="PLAYER2">Turn 2</option>
+          </select>
+        </div>
+      ) : null}
 
       <button type="submit" disabled={loading} style={styles.playButton}>
         {loading ? 'Loading...' : 'Play'}

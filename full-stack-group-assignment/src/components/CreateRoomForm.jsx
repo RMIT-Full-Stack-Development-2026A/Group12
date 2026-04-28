@@ -192,8 +192,7 @@ const isOnlineWaiting =
         marker,
         boardSize: Number(boardSize),
         aiLevel,
-        // player2Marker: isLocalGame ? localPlayer2Marker : undefined,
-        // starterMarker
+        starterMarker,
       });
 
       setResultData(data);
@@ -277,9 +276,17 @@ const handleJoinRoom = async (codeOverride) => {
       setError('');
       setInfoMessage('');
 
+      const startStarterMarker = nextStarterRole === 'PLAYER1' ? marker : onlineGuestMarker;
+      if (!startStarterMarker) {
+        setError('Please choose who goes first before starting');
+        setStarting(false);
+        return;
+      }
+
       const data = await startRoom({
         roomCode,
         userId: currentUserId,
+        starterMarker: startStarterMarker,
       });
 
       const nextRoom = data?.data?.room || null;
@@ -483,6 +490,7 @@ const handlePlayAgain = async () => {
         marker,
         boardSize: Number(boardSize),
         aiLevel,
+        starterMarker,
       });
 
       setResultData(data);
@@ -596,6 +604,8 @@ const handlePlayAgain = async () => {
             setBoardSize={setBoardSize}
             aiLevel={aiLevel}
             setAiLevel={setAiLevel}
+            nextStarterRole={nextStarterRole}
+            setNextStarterRole={setNextStarterRole}
             loading={loading}
             onPlay={handlePlay}
             styles={styles}
@@ -770,6 +780,8 @@ const handlePlayAgain = async () => {
           onCopyUserId={handleCopyUserId}
           error={error}
           infoMessage={infoMessage}
+          nextStarterRole={nextStarterRole}
+          setNextStarterRole={setNextStarterRole}
           styles={styles}
         />
 

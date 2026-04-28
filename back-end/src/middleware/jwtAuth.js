@@ -4,13 +4,7 @@
 
 const jwt = require('jsonwebtoken');
 const { JWT_SECRET } = require('../config/jwtConfig');
-
-let User;
-try {
-  User = require('../models/user.model');
-} catch {
-  User = require('../models/user');
-}
+const authRepository = require('../repositories/authRepository');
 
 function getTokenFromHeader(authorizationHeader) {
   if (!authorizationHeader || typeof authorizationHeader !== 'string') {
@@ -39,7 +33,7 @@ async function authenticateJWT(req, res, next) {
       return res.status(401).json({ success: false, error: 'Unauthorized' });
     }
 
-    const authUser = await User.findById(tokenUserId.toString()).exec();
+    const authUser = await authRepository.findUserById(tokenUserId.toString());
     if (authUser && authUser.isActive === false) {
       return res.status(403).json({
         success: false,

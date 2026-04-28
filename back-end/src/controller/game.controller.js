@@ -73,7 +73,8 @@ const startRoomController = async (req, res) => {
   try {
     const result = await gameService.startRoom({
       userId: req.body.userId,
-      roomCode: req.params.roomCode
+      roomCode: req.params.roomCode,
+      starterMarker: req.body.starterMarker
     });
 
     return res.status(200).json({
