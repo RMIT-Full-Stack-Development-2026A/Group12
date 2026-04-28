@@ -28,30 +28,31 @@ function App() {
     return 'Tic Tac Toe'
   }, [view])
 
-  function requireAuth(action) {
-    if (isAuthed) {
-      action()
-      return
-    }
-
-    setIsGateOpen(true)
-  }
-
   function goHome() {
     setView(VIEWS.HOME)
     setIsMenuOpen(false)
   }
 
   function goProfile() {
-    requireAuth(() => {
-      setView(VIEWS.PROFILE)
+    if (!isAuthed) {
       setIsMenuOpen(false)
-    })
+      setView(VIEWS.CREATE)
+      setIsGateOpen(true)
+      return
+    }
+
+    setView(VIEWS.PROFILE)
+    setIsMenuOpen(false)
   }
 
   function goCreate() {
-    requireAuth(() => setView(VIEWS.CREATE))
+    setView(VIEWS.CREATE)
   }
+
+  const requireCreateLogin = useCallback(() => {
+    setView(VIEWS.CREATE)
+    setIsGateOpen(true)
+  }, [])
 
   const openAuth = useCallback(() => {
     setIsGateOpen(false)
@@ -74,7 +75,7 @@ function App() {
     setCurrentUser(null)
     setIsGateOpen(false)
     setIsMenuOpen(false)
-    setView(VIEWS.AUTH)
+    setView(VIEWS.HOME)
   }
 
   function toggleMenu() {
@@ -82,7 +83,7 @@ function App() {
   }
 
   const avatarSrc = toAssetUrl(currentUser?.avatarUrl)
-  const displayName = currentUser?.username || 'Guest'
+  const displayName = currentUser?.username || 'Anonymous'
 
   return (
     <div style={styles.shell}>
@@ -118,20 +119,28 @@ function App() {
                 <div style={styles.menuUsername}>{displayName}</div>
               </div>
 
-              <button type="button" style={styles.menuAction} onClick={goProfile}>
-                Edit Profile
-              </button>
+              {isAuthed ? (
+                <>
+                  <button type="button" style={styles.menuAction} onClick={goProfile}>
+                    Edit Profile
+                  </button>
 
-              <button
-                type="button"
-                style={{
-                  ...styles.menuAction,
-                  ...styles.logoutAction,
-                }}
-                onClick={handleLogout}
-              >
-                Log out
-              </button>
+                  <button
+                    type="button"
+                    style={{
+                      ...styles.menuAction,
+                      ...styles.logoutAction,
+                    }}
+                    onClick={handleLogout}
+                  >
+                    Log out
+                  </button>
+                </>
+              ) : (
+                <button type="button" style={styles.menuAction} onClick={openAuth}>
+                  Login
+                </button>
+              )}
             </div>
           ) : null}
         </div>
@@ -147,7 +156,7 @@ function App() {
         ) : null}
 
         {view === VIEWS.CREATE ? (
-          <CreateRoomPage currentUser={currentUser} />
+          <CreateRoomPage currentUser={currentUser} onRequireLogin={requireCreateLogin} />
         ) : null}
 
         {view === VIEWS.PROFILE ? (

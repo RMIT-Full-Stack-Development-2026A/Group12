@@ -6,18 +6,18 @@ const {
 } = require('../constants/enums');
 
 const validateCreateRoomDto = (body) => {
-  const userId = body.userId;
+  const userId = body.userId || null;
   const gameMode = body.gameMode;
   const marker = String(body.marker || '').trim();
   const boardSize = Number(body.boardSize);
   const aiLevel = body.aiLevel || 'easy';
 
-  if (!userId) {
-    return { error: 'userId is required' };
-  }
-
   if (!ALLOWED_GAME_MODES.includes(gameMode)) {
     return { error: 'gameMode must be LOCAL, SINGLE, or ONLINE' };
+  }
+
+  if (gameMode === 'ONLINE' && !userId) {
+    return { error: 'userId is required for ONLINE mode' };
   }
 
   if (!ALLOWED_MARKERS.includes(marker)) {

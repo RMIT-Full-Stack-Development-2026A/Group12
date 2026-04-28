@@ -45,6 +45,10 @@ const {
   playAgainController
 } = require('../controller/game.controller');
 
+const {
+  surrenderGameController
+} = require('../controller/roomController');
+
 // Create room / game
 router.post('/create', createRoomController);
 
@@ -65,5 +69,8 @@ router.post('/:roomCode/play-again', playAgainController);
 
 // Make move
 router.post('/move', makeMoveController);
+
+// Surrender current game
+router.post('/surrender', surrenderGameController);
 
 module.exports = router;

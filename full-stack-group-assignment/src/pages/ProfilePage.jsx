@@ -1,17 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { API_ORIGIN, API_ROOT_URL, FALLBACK_COUNTRIES } from '../config/appConfig'
 import {
-  PROFILE_BOARD_SIZES,
-  PROFILE_BOARD_STYLES,
-  PROFILE_MARKERS,
-} from '../constants/profileOptions'
-import {
   deleteSessionHistoryItem,
   getSessionHistory,
   getUserProfile,
   updateUserProfile,
   uploadUserAvatar,
 } from '../services/userProfileService'
+
+const SESSION_PAGE_SIZE = 10
 
 function ProfilePage({ currentUser, onRequestLogin, onUserUpdated }) {
   const userId = currentUser?._id
@@ -24,10 +21,6 @@ function ProfilePage({ currentUser, onRequestLogin, onUserUpdated }) {
   const [email, setEmail] = useState(currentUser?.email || '')
   const [username, setUsername] = useState(currentUser?.username || '')
   const [country, setCountry] = useState(currentUser?.country || '')
-
-  const [preferredMarker, setPreferredMarker] = useState('')
-  const [preferredBoardStyle, setPreferredBoardStyle] = useState('')
-  const [preferredBoardSize, setPreferredBoardSize] = useState('')
 
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -44,6 +37,7 @@ function ProfilePage({ currentUser, onRequestLogin, onUserUpdated }) {
   const [sessionMessage, setSessionMessage] = useState('')
   const [isViewAllOpen, setIsViewAllOpen] = useState(false)
   const [sessionSearch, setSessionSearch] = useState('')
+  const [sessionPage, setSessionPage] = useState(1)
   const [replaySessionId, setReplaySessionId] = useState('')
 
   const [sessionFilters, setSessionFilters] = useState({
@@ -105,14 +99,6 @@ function ProfilePage({ currentUser, onRequestLogin, onUserUpdated }) {
         setEmail(data.email || '')
         setUsername(data.username || '')
         setCountry(data.country || '')
-        setPreferredMarker(data.preference?.preferredMarker || '')
-        setPreferredBoardStyle(
-          data.preference?.preferredBoardStyle !== undefined &&
-            data.preference?.preferredBoardStyle !== null
-            ? String(data.preference.preferredBoardStyle)
-            : ''
-        )
-        setPreferredBoardSize(data.preference?.preferredBoardSize || '')
       } catch (error) {
         if (!active) return
         setMessage(error.message || 'Failed to load profile')
@@ -188,6 +174,32 @@ function ProfilePage({ currentUser, onRequestLogin, onUserUpdated }) {
 
   const recentSessions = useMemo(() => filteredSessions.slice(0, 3), [filteredSessions])
 
+  const totalSessionPages = useMemo(
+    () => Math.max(1, Math.ceil(filteredSessions.length / SESSION_PAGE_SIZE)),
+    [filteredSessions.length]
+  )
+
+  const currentSessionPage = useMemo(
+    () => Math.min(sessionPage, totalSessionPages),
+    [sessionPage, totalSessionPages]
+  )
+
+  const pagedSessions = useMemo(() => {
+    const startIndex = (currentSessionPage - 1) * SESSION_PAGE_SIZE
+    const endIndex = startIndex + SESSION_PAGE_SIZE
+    return filteredSessions.slice(startIndex, endIndex)
+  }, [filteredSessions, currentSessionPage])
+
+  useEffect(() => {
+    setSessionPage(1)
+  }, [sessionSearch, sessionFilters])
+
+  useEffect(() => {
+    if (sessionPage > totalSessionPages) {
+      setSessionPage(totalSessionPages)
+    }
+  }, [sessionPage, totalSessionPages])
+
   async function saveProfile() {
     if (!userId) {
       if (onRequestLogin) onRequestLogin()
@@ -202,16 +214,6 @@ function ProfilePage({ currentUser, onRequestLogin, onUserUpdated }) {
         email,
         username,
         country,
-      }
-
-      if (preferredMarker) {
-        payload.preferredMarker = preferredMarker
-      }
-      if (preferredBoardStyle) {
-        payload.preferredBoardStyle = Number(preferredBoardStyle)
-      }
-      if (preferredBoardSize) {
-        payload.preferredBoardSize = preferredBoardSize
       }
 
       const updated = await updateUserProfile(userId, {
@@ -239,14 +241,6 @@ function ProfilePage({ currentUser, onRequestLogin, onUserUpdated }) {
     setEmail(profile?.email || currentUser?.email || '')
     setUsername(profile?.username || currentUser?.username || '')
     setCountry(profile?.country || currentUser?.country || '')
-    setPreferredMarker(profile?.preference?.preferredMarker || '')
-    setPreferredBoardStyle(
-      profile?.preference?.preferredBoardStyle !== undefined &&
-        profile?.preference?.preferredBoardStyle !== null
-        ? String(profile.preference.preferredBoardStyle)
-        : ''
-    )
-    setPreferredBoardSize(profile?.preference?.preferredBoardSize || '')
   }
 
   async function savePassword() {
@@ -487,58 +481,6 @@ function ProfilePage({ currentUser, onRequestLogin, onUserUpdated }) {
                     </select>
                   </div>
 
-                  <div style={styles.divider} />
-
-                  <h3 style={styles.subTitle}>Personal Preference</h3>
-
-                  <div style={styles.row}>
-                    <div style={styles.label}>Preferred marker:</div>
-                    <select
-                      value={preferredMarker}
-                      onChange={(e) => setPreferredMarker(e.target.value)}
-                      style={styles.select}
-                    >
-                      <option value="">Select marker</option>
-                      {PROFILE_MARKERS.map((m) => (
-                        <option key={m} value={m}>
-                          {m}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div style={styles.row}>
-                    <div style={styles.label}>Board style:</div>
-                    <select
-                      value={preferredBoardStyle}
-                      onChange={(e) => setPreferredBoardStyle(e.target.value)}
-                      style={styles.select}
-                    >
-                      <option value="">Select style</option>
-                      {PROFILE_BOARD_STYLES.map((s) => (
-                        <option key={s} value={s}>
-                          {s}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div style={styles.row}>
-                    <div style={styles.label}>Board size:</div>
-                    <select
-                      value={preferredBoardSize}
-                      onChange={(e) => setPreferredBoardSize(e.target.value)}
-                      style={styles.select}
-                    >
-                      <option value="">Select board size</option>
-                      {PROFILE_BOARD_SIZES.map((size) => (
-                        <option key={size} value={size}>
-                          {size}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
                   <div style={styles.actionRow}>
                     <button type="button" style={styles.btn} onClick={cancelProfileChanges}>
                       Cancel
@@ -677,6 +619,36 @@ function ProfilePage({ currentUser, onRequestLogin, onUserUpdated }) {
                 </div>
 
                 <div style={styles.tableWrap}>
+                  <div style={styles.paginationBar}>
+                    <div style={styles.paginationInfo}>
+                      Showing {(currentSessionPage - 1) * SESSION_PAGE_SIZE + 1}
+                      {' - '}
+                      {Math.min(currentSessionPage * SESSION_PAGE_SIZE, filteredSessions.length)}
+                      {' of '}
+                      {filteredSessions.length} sessions
+                    </div>
+
+                    <div style={styles.paginationActions}>
+                      <button
+                        type="button"
+                        style={styles.tableBtn}
+                        onClick={() => setSessionPage((prev) => Math.max(1, prev - 1))}
+                        disabled={currentSessionPage <= 1}
+                      >
+                        Previous
+                      </button>
+                      <span style={styles.paginationInfo}>Page {currentSessionPage}/{totalSessionPages}</span>
+                      <button
+                        type="button"
+                        style={styles.tableBtn}
+                        onClick={() => setSessionPage((prev) => Math.min(totalSessionPages, prev + 1))}
+                        disabled={currentSessionPage >= totalSessionPages}
+                      >
+                        Next
+                      </button>
+                    </div>
+                  </div>
+
                   <table style={styles.table}>
                     <thead>
                       <tr>
@@ -690,11 +662,12 @@ function ProfilePage({ currentUser, onRequestLogin, onUserUpdated }) {
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredSessions.map((session, index) => {
+                      {pagedSessions.map((session, index) => {
                         const isReplayOpen = replaySessionId === session.sessionId
+                        const displayIndex = (currentSessionPage - 1) * SESSION_PAGE_SIZE + index + 1
                         return (
                           <tr key={session.sessionId}>
-                            <td style={styles.td}>{index + 1}</td>
+                            <td style={styles.td}>{displayIndex}</td>
                             <td style={styles.td}>{formatDateTime(session.startTime)}</td>
                             <td style={styles.td}>{formatDateTime(session.endTime)}</td>
                             <td style={styles.td}>{session.gameType || '-'}</td>
@@ -731,7 +704,7 @@ function ProfilePage({ currentUser, onRequestLogin, onUserUpdated }) {
                                       <div style={styles.replayHeader}>Replay moves</div>
                                       {session.moves.map((move) => (
                                         <div key={`${session.sessionId}-${move.moveNumber}`} style={styles.replayLine}>
-                                          #{move.moveNumber} - {move.player} to {move.position}
+                                          #{move.moveNumber} - {resolveReplayPlayerName(session, move.player, currentUser?.username || 'You')} to {toAlgebraicNotation(move.position) || move.position || '-'}
                                         </div>
                                       ))}
                                     </>
@@ -802,6 +775,54 @@ function formatDateTime(value) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return '-'
   return date.toLocaleString()
+}
+
+function toAlgebraicNotation(position) {
+  if (!position || typeof position !== 'string') return ''
+
+  const [rawRow, rawCol] = position.split(',')
+  const row = Number(rawRow)
+  const col = Number(rawCol)
+
+  if (!Number.isInteger(row) || !Number.isInteger(col) || row < 0 || col < 0) {
+    return ''
+  }
+
+  let value = col
+  let column = ''
+
+  do {
+    column = String.fromCharCode(65 + (value % 26)) + column
+    value = Math.floor(value / 26) - 1
+  } while (value >= 0)
+
+  return `${column}${row + 1}`
+}
+
+function resolveReplayPlayerName(session, moveMarker, currentUsername) {
+  if (!session || !moveMarker) return '-'
+
+  const gameType = (session.gameType || '').toLowerCase()
+
+  if (gameType === 'single_player') {
+    if (moveMarker === session.player1Marker) return 'Player 1'
+    if (moveMarker === session.player2Marker) return session.opponent?.name || 'Bot'
+    return moveMarker
+  }
+
+  if (gameType === 'two_player') {
+    if (moveMarker === session.player1Marker) return 'Player 1'
+    if (moveMarker === session.player2Marker) return 'Player 2'
+    return moveMarker
+  }
+
+  if (gameType === 'online') {
+    if (moveMarker === session.player1Marker) return currentUsername || 'You'
+    if (moveMarker === session.player2Marker) return session.opponent?.name || 'Opponent'
+    return moveMarker
+  }
+
+  return moveMarker
 }
 
 function toAssetUrl(path) {
@@ -957,6 +978,24 @@ const styles = {
   },
   tableWrap: {
     overflowX: 'auto',
+  },
+  paginationBar: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+    flexWrap: 'wrap',
+  },
+  paginationActions: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  paginationInfo: {
+    fontSize: 13,
+    color: '#333',
   },
   table: {
     width: '100%',

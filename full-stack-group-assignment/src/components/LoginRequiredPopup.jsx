@@ -18,7 +18,7 @@ function LoginRequiredPopup({ isOpen, onClose, onLogin }) {
           </button>
         </div>
         <div style={styles.windowBody}>
-          <p style={styles.message}>You must login first</p>
+          <p style={styles.message}>You have to login first to play online.</p>
           <button type="button" onClick={onLogin} style={styles.loginBtn}>
             Login
           </button>
