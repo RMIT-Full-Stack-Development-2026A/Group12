@@ -10,7 +10,9 @@ function GameBoard({
   roomData,
   resultData,
   onBackToCreate,
-  onPlayAgain
+  onPlayAgain,
+  onBackToRoom,
+  playAgainLoading = false
 }) {
   const [loadingCell, setLoadingCell] = useState(null);
   const [error, setError] = useState('');
@@ -86,10 +88,7 @@ function GameBoard({
 
   const handleCellClick = async (index) => {
     if (!sessionId || isFinished) return;
-
-    if (marker !== currentTurn) {
-      return;
-    }
+    if (marker !== currentTurn) return;
 
     const row = Math.floor(index / boardSize);
     const col = index % boardSize;
@@ -168,12 +167,24 @@ function GameBoard({
 
       {isFinished && (
         <div style={styles.actions}>
-          <button type="button" onClick={onPlayAgain} style={styles.actionButton}>
-            Play Again
+          <button
+            type="button"
+            onClick={onPlayAgain}
+            style={styles.actionButton}
+            disabled={playAgainLoading}
+          >
+            {playAgainLoading ? 'Waiting...' : 'Play Again'}
           </button>
-          <button type="button" onClick={onBackToCreate} style={styles.actionButton}>
-            Back to Create Game
-          </button>
+
+          {gameMode === 'ONLINE' ? (
+            <button type="button" onClick={onBackToRoom} style={styles.actionButton}>
+              Back to Room
+            </button>
+          ) : (
+            <button type="button" onClick={onBackToCreate} style={styles.actionButton}>
+              Back to Create Game
+            </button>
+          )}
         </div>
       )}
     </div>

@@ -1,6 +1,6 @@
-import { API_ROOT_URL } from '../config/appConfig'
+import { API_ROOT_URL } from '../config/appConfig';
 
-const ROOMS_URL = `${API_ROOT_URL}/rooms`
+const ROOMS_URL = `${API_ROOT_URL}/rooms`;
 
 async function postJson(url, body) {
   const response = await fetch(url, {
@@ -9,27 +9,27 @@ async function postJson(url, body) {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(body),
-  })
+  });
 
-  const data = await response.json().catch(() => ({}))
+  const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(data.message || 'Request failed')
+    throw new Error(data.message || 'Request failed');
   }
 
-  return data
+  return data;
 }
 
 async function getJson(url) {
   const response = await fetch(url, {
     method: 'GET',
-  })
+  });
 
-  const data = await response.json().catch(() => ({}))
+  const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(data.message || 'Request failed')
+    throw new Error(data.message || 'Request failed');
   }
 
-  return data
+  return data;
 }
 
 export const createGame = async ({
@@ -37,7 +37,7 @@ export const createGame = async ({
   gameMode,
   marker,
   boardSize,
-  aiLevel = 'easy'
+  aiLevel = 'easy',
 }) => {
   return postJson(`${ROOMS_URL}/create`, {
     userId,
@@ -45,25 +45,31 @@ export const createGame = async ({
     marker,
     boardSize,
     aiLevel,
-  })
-}
+  });
+};
 
 export const joinRoom = async ({ roomCode, userId, marker }) => {
   return postJson(`${ROOMS_URL}/join/${roomCode}`, {
     userId,
     marker,
-  })
-}
+  });
+};
 
 export const startRoom = async ({ roomCode, userId }) => {
   return postJson(`${ROOMS_URL}/${roomCode}/start`, {
     userId,
-  })
-}
+  });
+};
+
+export const playAgain = async ({ roomCode, userId }) => {
+  return postJson(`${ROOMS_URL}/${roomCode}/play-again`, {
+    userId,
+  });
+};
 
 export const getSessionByRoom = async (roomCode) => {
-  return getJson(`${ROOMS_URL}/${roomCode}/session`)
-}
+  return getJson(`${ROOMS_URL}/${roomCode}/session`);
+};
 
 export const makeMove = async ({ sessionId, row, col, marker }) => {
   return postJson(`${ROOMS_URL}/move`, {
@@ -71,5 +77,5 @@ export const makeMove = async ({ sessionId, row, col, marker }) => {
     row,
     col,
     marker,
-  })
-}
+  });
+};

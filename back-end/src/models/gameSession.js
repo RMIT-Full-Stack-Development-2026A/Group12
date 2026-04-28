@@ -1,35 +1,151 @@
+// const mongoose = require('mongoose');
+
+// const MoveSchema = new mongoose.Schema({
+//   moveNumber: Number,
+//   player: String,
+//   position: String,
+//   timestamp: Date
+// }, { _id: false });
+
+// const GameSessionSchema = new mongoose.Schema({
+//   player1Id: {
+//     type: mongoose.Schema.Types.ObjectId,
+//     ref: 'User'
+//   },
+//   player2Id: {
+//     type: mongoose.Schema.Types.ObjectId,
+//     ref: 'User',
+//     default: null
+//   },
+//     player1Marker: {
+//   type: String,
+//   enum: ['X', 'O', 'A', 'B', '△', '○'],
+//   default: null
+// },
+// player2Marker: {
+//   type: String,
+//   enum: ['X', 'O', 'A', 'B', '△', '○'],
+//   default: null
+// },
+//   aiLevel: {
+//     type: String,
+//     enum: ['easy', 'medium', 'hard']
+//   },
+
+//   boardSize: {
+//     type: Number,
+//     enum: [3, 10, 15],
+//     default: 10
+//   },
+
+//   gameType: {
+//     type: String,
+//     enum: ['LOCAL', 'SINGLE', 'ONLINE'],
+//     required: true
+//   },
+
+//   moves: {
+//     type: [MoveSchema],
+//     default: []
+//   },
+
+//   result: {
+//     type: String,
+//     enum: ['PLAYER1_WIN', 'PLAYER2_WIN', 'DRAW', 'ABORT'],
+//     default: null
+//   },
+
+//   startTime: {
+//     type: Date,
+//     default: Date.now
+//   },
+//   endTime: {
+//     type: Date,
+//     default: null
+//   },
+//   board: {
+//   type: [[String]],
+//   default: null
+// },
+// roomCode: { type: String, default: null },
+// currentTurn: {
+//   type: String,
+//   enum: ['X', 'O', 'A', 'B', '△', '○'],
+//   default: null
+// },
+// status: {
+//   type: String,
+//   enum: ['WAITING', 'PLAYING', 'WIN', 'DRAW', 'FINISHED'],
+//   default: 'WAITING'
+// },
+// winner: {
+//   type: String,
+//   default: null
+// }
+// }, { timestamps: true });
+
+// module.exports = mongoose.model('GameSession', GameSessionSchema);
+
 const mongoose = require('mongoose');
+
+const ALLOWED_MARKERS = ['X', 'O', 'A', 'B', '△', '○'];
 
 const MoveSchema = new mongoose.Schema({
   moveNumber: Number,
-  player: String,
+  player: {
+    type: String,
+    enum: ALLOWED_MARKERS
+  },
   position: String,
   timestamp: Date
 }, { _id: false });
 
 const GameSessionSchema = new mongoose.Schema({
+  roomId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'GameRoom',
+    default: null,
+    index: true
+  },
+
+  roomCode: {
+    type: String,
+    default: null
+  },
+
+  sessionNumber: {
+    type: Number,
+    default: 1
+  },
+
   player1Id: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User'
+    ref: 'User',
+    default: null
   },
+
   player2Id: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     default: null
   },
-    player1Marker: {
-  type: String,
-  enum: ['X', 'O', 'A', 'B', '△', '○'],
-  default: null
-},
-player2Marker: {
-  type: String,
-  enum: ['X', 'O', 'A', 'B', '△', '○'],
-  default: null
-},
+
+  player1Marker: {
+    type: String,
+    enum: ALLOWED_MARKERS,
+    default: null
+  },
+
+  player2Marker: {
+    type: String,
+    enum: ALLOWED_MARKERS,
+    default: null
+  },
+
   aiLevel: {
     type: String,
-    enum: ['easy', 'medium', 'hard']
+    enum: ['easy', 'medium', 'hard'],
+    default: null
   },
 
   boardSize: {
@@ -44,9 +160,32 @@ player2Marker: {
     required: true
   },
 
+  board: {
+    type: [[String]],
+    default: null
+  },
+
+  currentTurn: {
+    type: String,
+    enum: ALLOWED_MARKERS,
+    default: null
+  },
+
   moves: {
     type: [MoveSchema],
     default: []
+  },
+
+  status: {
+    type: String,
+    enum: ['WAITING', 'PLAYING', 'WIN', 'DRAW', 'FINISHED'],
+    default: 'WAITING'
+  },
+
+  winner: {
+    type: String,
+    enum: [...ALLOWED_MARKERS, null],
+    default: null
   },
 
   result: {
@@ -59,29 +198,14 @@ player2Marker: {
     type: Date,
     default: Date.now
   },
+
   endTime: {
     type: Date,
     default: null
-  },
-  board: {
-  type: [[String]],
-  default: null
-},
-roomCode: { type: String, default: null },
-currentTurn: {
-  type: String,
-  enum: ['X', 'O', 'A', 'B', '△', '○'],
-  default: null
-},
-status: {
-  type: String,
-  enum: ['WAITING', 'PLAYING', 'WIN', 'DRAW', 'FINISHED'],
-  default: 'WAITING'
-},
-winner: {
-  type: String,
-  default: null
-}
+  }
 }, { timestamps: true });
+
+GameSessionSchema.index({ roomId: 1, sessionNumber: -1 });
+GameSessionSchema.index({ roomId: 1, createdAt: -1 });
 
 module.exports = mongoose.model('GameSession', GameSessionSchema);
