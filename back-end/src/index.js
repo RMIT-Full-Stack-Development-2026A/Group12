@@ -4,6 +4,7 @@ const http = require('http');
 const path = require('path');
 const { Server } = require('socket.io');
 require('dotenv').config();
+const { createProxyMiddleware } = require('http-proxy-middleware');
 
 const connectToDatabase = require('./config/db');
 const authRouter = require('./router/authRouter');
@@ -14,6 +15,7 @@ const walletRoutes = require('./modules/wallet/wallet.route');
 const subRoutes = require('./modules/subscription/subscription.route');
 const { startSubscriptionJob } = require('./modules/subscription/subscription.cron');
 const paymentRoutes = require('./modules/payment/payment.route');
+const { startPaymentCleanupJob } = require('./modules/payment/payment.cron');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -61,3 +63,14 @@ connectToDatabase()
   });
 
 startSubscriptionJob();
+
+startPaymentCleanupJob();
+
+app.use(
+  '/',
+  createProxyMiddleware({
+    target: 'http://localhost:5173',
+    changeOrigin: true,
+    ws: true
+  })
+);

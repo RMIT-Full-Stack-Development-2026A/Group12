@@ -12,12 +12,13 @@ function FakeVNPay() {
   }, []);
 
   const handleSuccess = () => {
-    window.location.href =
-      `http://localhost:5000/api/payment/vnpay-return` +
-      `?vnp_TxnRef=${orderId}` +
-      `&vnp_ResponseCode=00` +
-      `&vnp_Amount=${amount * 100}`;
-  };
+  window.location.href =
+    `${window.location.origin.replace(':5173', ':5000')}/api/payment/vnpay-return` +
+    `?vnp_TxnRef=${orderId}` +
+    `&vnp_ResponseCode=00` +
+    `&vnp_Amount=${amount * 100}` +
+    `&type=wallet`; 
+};
 
   const handleFail = () => {
     window.location.href =

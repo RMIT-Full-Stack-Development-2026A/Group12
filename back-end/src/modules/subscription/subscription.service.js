@@ -2,6 +2,8 @@ const subRepo = require('./subscription.repository');
 const walletRepo = require('../wallet/wallet.repository');
 const User = require('../../models/user');
 const { sendSubscriptionEmail } = require('../../services/email.service');
+const Transaction = require('../../models/transaction');
+const transactionService = require('../transaction/transaction.service');
 
 const PRICE = 100000;
 
@@ -17,6 +19,12 @@ async function subscribeWithWallet(userId) {
   }
 
   await walletRepo.updateBalance(userId, -PRICE);
+
+  await transactionService.createWalletSubscriptionTransaction({
+    userId,
+    walletId: wallet._id,
+    amount: PRICE
+  });
 
   const startDate = new Date();
   const endDate = new Date();

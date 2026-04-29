@@ -1,11 +1,26 @@
 const mongoose = require('mongoose');
 
 const TransactionSchema = new mongoose.Schema({
-  walletId: mongoose.Schema.Types.ObjectId,
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  walletId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Wallet'
+  },
+  paymentId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Payment'
+  },
   amount: Number,
   type: {
     type: String,
     enum: ['DEPOSIT', 'SUBSCRIPTION']
+  },
+  method: {
+    type: String,
+    enum: ['VNPAY', 'QR', 'WALLET']
   },
   createdAt: {
     type: Date,

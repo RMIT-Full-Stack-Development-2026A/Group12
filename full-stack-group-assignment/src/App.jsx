@@ -7,6 +7,8 @@ import ProfilePage from './pages/ProfilePage'
 import { API_ORIGIN, TOKEN_STORAGE_KEY } from './config/appConfig'
 import FakeVNPay from './pages/FakeVNPay'
 import { useEffect } from 'react';
+import QRPayment from './pages/QRPayment'
+import FakeBank from './pages/FakeBank'
 
 const VIEWS = {
   HOME: 'home',
@@ -14,6 +16,8 @@ const VIEWS = {
   CREATE: 'create',
   PROFILE: 'profile',
   FAKE_VNPAY: 'fake_vnpay',
+  QR: 'qr',
+  FAKE_BANK: 'fake_bank',
 }
 
 function App() {
@@ -90,6 +94,18 @@ function App() {
   useEffect(() => {
   if (window.location.pathname === '/fake-vnpay') {
     setView(VIEWS.FAKE_VNPAY);
+  }
+  }, []);
+
+  useEffect(() => {
+  if (window.location.pathname === '/qr-payment') {
+    setView(VIEWS.QR);
+  }
+  }, []);
+
+  useEffect(() => {
+  if (window.location.pathname === '/fake-bank') {
+    setView(VIEWS.FAKE_BANK);
   }
   }, []);
 
@@ -170,6 +186,10 @@ function App() {
         {view === VIEWS.FAKE_VNPAY ? (
             <FakeVNPay />
         ) : null}
+
+        {view === VIEWS.QR ? <QRPayment /> : null}
+
+        {view === VIEWS.FAKE_BANK ? <FakeBank /> : null}
       </main>
 
       <LoginRequiredPopup
