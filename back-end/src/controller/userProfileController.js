@@ -10,7 +10,7 @@
  */
 
 const multer = require('multer');
-const userProfileService = require('../services/userProfileService');
+const { userProfile: userProfileService } = require('../services');
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -29,32 +29,15 @@ const upload = multer({
 });
 
 function handleError(res, error) {
-  if (error.statusCode === 400 && Array.isArray(error.details)) {
-    return res.status(400).json({
-      success: false,
-      errors: error.details
-    });
-  }
-
   if (error.statusCode) {
-    if (Array.isArray(error.details)) {
-      return res.status(error.statusCode).json({
-        success: false,
-        errors: error.details
-      });
-    }
-
-    return res.status(error.statusCode).json({
-      success: false,
-      error: error.message
-    });
+    const body = Array.isArray(error.details)
+      ? { success: false, errors: error.details }
+      : { success: false, error: error.message };
+    return res.status(error.statusCode).json(body);
   }
 
   console.error(error);
-  return res.status(500).json({
-    success: false,
-    error: 'Internal server error'
-  });
+  return res.status(500).json({ success: false, error: 'Internal server error' });
 }
 
 function mapUploadError(error) {

@@ -27,9 +27,16 @@ function validateRegister(req, res, next) {
     });
   }
 
-  if (typeof password !== 'string' || password.length < 6) {
+  const PASSWORD_SPECIAL = /[$#@!]/;
+  if (
+    typeof password !== 'string' ||
+    password.length < 8 ||
+    !/[A-Z]/.test(password) ||
+    !/[0-9]/.test(password) ||
+    !PASSWORD_SPECIAL.test(password)
+  ) {
     return res.status(400).json({
-      message: 'password must be at least 6 characters'
+      message: 'Password must be at least 8 characters and include an uppercase letter, a number, and a special character ($, #, @, !)'
     });
   }
 

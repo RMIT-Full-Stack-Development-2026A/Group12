@@ -9,7 +9,14 @@ const findByRoomCode = (roomCode) => {
 };
 
 const findByRoomCodeWithPlayers = (roomCode) => {
-  return GameRoom.findOne({ roomCode }).populate('players.userId', 'username email');
+  return GameRoom.findOne({ roomCode }).populate('players.userId', 'username email avatarUrl');
+};
+
+const findWaitingRooms = () => {
+  return GameRoom.find({ status: 'WAITING' })
+    .populate('players.userId', 'username avatarUrl')
+    .sort({ createdAt: -1 })
+    .limit(50);
 };
 
 const create = (payload) => {
@@ -67,6 +74,7 @@ module.exports = {
   findById,
   findByRoomCode,
   findByRoomCodeWithPlayers,
+  findWaitingRooms,
   create,
   save,
   updateById,

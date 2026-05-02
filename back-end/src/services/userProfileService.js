@@ -224,21 +224,15 @@ function normalizeBoardSize(boardSize) {
   return boardSize || null;
 }
 
+const GAME_TYPE_MAP = {
+  single: 'single_player', single_player: 'single_player',
+  local: 'two_player', two_player: 'two_player',
+  online: 'online',
+};
+
 function normalizeGameType(gameType) {
   const value = (gameType || '').toString().toLowerCase();
-  if (value === 'single' || value === 'single_player') {
-    return 'single_player';
-  }
-
-  if (value === 'local' || value === 'two_player') {
-    return 'two_player';
-  }
-
-  if (value === 'online') {
-    return 'online';
-  }
-
-  return value || null;
+  return (GAME_TYPE_MAP[value] ?? value) || null;
 }
 
 function normalizeStatus(status, result) {

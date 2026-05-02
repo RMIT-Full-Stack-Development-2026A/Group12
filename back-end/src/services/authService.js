@@ -9,8 +9,8 @@ const {
   mapSafeUser
 } = require('../dtos/authDto');
 
-const MAX_FAILED_LOGINS = 3;
-const LOCK_DURATION_MS = 2 * 60 * 1000;
+const MAX_FAILED_LOGINS = 5;
+const LOCK_DURATION_MS = 60 * 1000;
 
 function normalizeEmail(value) {
   return String(value).toLowerCase().trim();
@@ -118,7 +118,7 @@ async function login(loginRequestDto) {
     const now = new Date();
     if (user.lockUntil && user.lockUntil > now) {
       return makeResult(423, {
-        message: 'Account locked due to 3 failed login attempts',
+        message: 'Account locked due to 5 failed login attempts',
         lockUntil: user.lockUntil
       });
     }
@@ -142,14 +142,13 @@ async function login(loginRequestDto) {
 
       if (user.lockUntil) {
         return makeResult(423, {
-          message: 'Account locked for 2 minutes after 3 failed attempts',
+          message: 'Account locked for 60 seconds after 5 failed attempts',
           lockUntil: user.lockUntil
         });
       }
 
       return makeResult(401, {
-        message: 'Invalid username/email or password',
-        failedLogins: user.failedLogins
+        message: 'Invalid username/email or password'
       });
     }
 

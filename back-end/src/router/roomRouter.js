@@ -42,7 +42,8 @@ const {
   startRoomController,
   makeMoveController,
   getSessionByRoomController,
-  playAgainController
+  playAgainController,
+  listWaitingRoomsController
 } = require('../controller/game.controller');
 
 const {
@@ -54,6 +55,9 @@ router.post('/create', createRoomController);
 
 // Join room
 router.post('/join/:roomCode', joinRoomController);
+
+// List waiting rooms (arena) — must be before /:roomCode to avoid conflict
+router.get('/arena', listWaitingRoomsController);
 
 // Get room info
 router.get('/:roomCode', getRoomController);

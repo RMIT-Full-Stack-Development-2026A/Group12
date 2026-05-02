@@ -1,4 +1,4 @@
-const gameService = require('../services/game.service');
+const { game: gameService } = require('../services');
 const { validateCreateRoomDto } = require('../dtos/create-room.dto');
 const { validateJoinRoomDto } = require('../dtos/join-room.dto');
 const { validateMakeMoveDto } = require('../dtos/make-move.dto');
@@ -149,6 +149,15 @@ const playAgainController = async (req, res) => {
   }
 };
 
+const listWaitingRoomsController = async (req, res) => {
+  try {
+    const rooms = await gameService.listWaitingRooms();
+    return res.status(200).json({ success: true, data: rooms });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   createRoomController,
   joinRoomController,
@@ -156,5 +165,6 @@ module.exports = {
   startRoomController,
   makeMoveController,
   getSessionByRoomController,
-  playAgainController
+  playAgainController,
+  listWaitingRoomsController
 };

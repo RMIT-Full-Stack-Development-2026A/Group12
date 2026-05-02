@@ -16,6 +16,16 @@ function initSocket(io) {
       socket.leave(roomCode);
     });
 
+    socket.on('join_session_channel', (sessionId) => {
+      if (!sessionId) return;
+      socket.join(`session:${sessionId}`);
+    });
+
+    socket.on('leave_session_channel', (sessionId) => {
+      if (!sessionId) return;
+      socket.leave(`session:${sessionId}`);
+    });
+
     socket.on('disconnect', () => {
       console.log('Socket disconnected:', socket.id);
     });

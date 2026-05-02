@@ -1,18 +1,23 @@
 import { useEffect } from 'react';
 import socket from '../socket';
-import { getSessionByRoom } from '../services/roomService';
 
 export default function useRoomSocket({
   roomCode,
+  sessionId,
   setResultData,
   setShowBoard,
   setError,
   setInfoMessage,
+  onFetchSession,
 }) {
   useEffect(() => {
-    if (!roomCode) return;
+    if (!roomCode && !sessionId) return;
 
-    socket.emit('join_room_channel', roomCode);
+    if (roomCode) {
+      socket.emit('join_room_channel', roomCode);
+    } else {
+      socket.emit('join_session_channel', sessionId);
+    }
 
     const handleRoomUpdated = (updatedRoom) => {
       setResultData((prev) => ({
@@ -54,19 +59,21 @@ export default function useRoomSocket({
         return;
       }
 
-      try {
-        const sessionRes = await getSessionByRoom(startedRoom.roomCode);
-        setResultData((prev) => ({
-          ...prev,
-          data: {
-            ...(prev?.data || {}),
-            room: startedRoom,
-            session: sessionRes.data,
-          },
-        }));
-        setShowBoard(true);
-      } catch (err) {
-        setError(err.message || 'Cannot load session');
+      if (onFetchSession) {
+        try {
+          const sessionRes = await onFetchSession(startedRoom.roomCode);
+          setResultData((prev) => ({
+            ...prev,
+            data: {
+              ...(prev?.data || {}),
+              room: startedRoom,
+              session: sessionRes?.data || sessionRes,
+            },
+          }));
+          setShowBoard(true);
+        } catch (err) {
+          setError(err.message || 'Cannot load session');
+        }
       }
     };
 
@@ -93,7 +100,11 @@ export default function useRoomSocket({
       socket.off('room_updated', handleRoomUpdated);
       socket.off('room_started', handleRoomStarted);
       socket.off('session_updated', handleSessionUpdated);
-      socket.emit('leave_room_channel', roomCode);
+      if (roomCode) {
+        socket.emit('leave_room_channel', roomCode);
+      } else {
+        socket.emit('leave_session_channel', sessionId);
+      }
     };
-  }, [roomCode, setResultData, setShowBoard, setError, setInfoMessage]);
+  }, [roomCode, sessionId, setResultData, setShowBoard, setError, setInfoMessage, onFetchSession]);
 }

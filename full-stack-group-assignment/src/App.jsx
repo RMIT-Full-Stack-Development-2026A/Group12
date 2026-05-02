@@ -4,13 +4,16 @@ import LoginRequiredPopup from './components/LoginRequiredPopup'
 import CreateRoomPage from './pages/CreateRoomPage'
 import HomePage from './pages/HomePage'
 import ProfilePage from './pages/ProfilePage'
-import { API_ORIGIN, TOKEN_STORAGE_KEY } from './config/appConfig'
+import ArenaPage from './pages/ArenaPage'
+import { TOKEN_STORAGE_KEY } from './config/appConfig'
+import { toAssetUrl } from './utils/gameUtils'
 
 const VIEWS = {
   HOME: 'home',
   AUTH: 'auth',
   CREATE: 'create',
   PROFILE: 'profile',
+  ARENA: 'arena',
 }
 
 function App() {
@@ -21,10 +24,13 @@ function App() {
 
   const isAuthed = Boolean(currentUser)
 
+  const [arenaJoinCode, setArenaJoinCode] = useState('')
+
   const shellTitle = useMemo(() => {
     if (view === VIEWS.CREATE) return 'Create Room'
     if (view === VIEWS.PROFILE) return 'User Profile'
     if (view === VIEWS.AUTH) return 'Login / Register'
+    if (view === VIEWS.ARENA) return 'Arena'
     return 'Tic Tac Toe'
   }, [view])
 
@@ -46,6 +52,16 @@ function App() {
   }
 
   function goCreate() {
+    setView(VIEWS.CREATE)
+  }
+
+  function goArena() {
+    setView(VIEWS.ARENA)
+    setIsMenuOpen(false)
+  }
+
+  function handleJoinFromArena(roomCode) {
+    setArenaJoinCode(roomCode)
     setView(VIEWS.CREATE)
   }
 
@@ -92,9 +108,14 @@ function App() {
       </header>
 
       <nav style={styles.navbar}>
-        <button type="button" style={styles.navBtn} onClick={goHome}>
-          Home
-        </button>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <button type="button" style={styles.navBtn} onClick={goHome}>
+            Home
+          </button>
+          <button type="button" style={styles.navBtn} onClick={goArena}>
+            Arena
+          </button>
+        </div>
         <div style={styles.navRight}>
           <button
             type="button"
@@ -156,7 +177,20 @@ function App() {
         ) : null}
 
         {view === VIEWS.CREATE ? (
-          <CreateRoomPage currentUser={currentUser} onRequireLogin={requireCreateLogin} />
+          <CreateRoomPage
+            currentUser={currentUser}
+            onRequireLogin={requireCreateLogin}
+            initialJoinCode={arenaJoinCode}
+            onInitialJoinCodeConsumed={() => setArenaJoinCode('')}
+          />
+        ) : null}
+
+        {view === VIEWS.ARENA ? (
+          <ArenaPage
+            currentUser={currentUser}
+            onJoinRoom={handleJoinFromArena}
+            onRequireLogin={requireCreateLogin}
+          />
         ) : null}
 
         {view === VIEWS.PROFILE ? (
@@ -177,12 +211,6 @@ function App() {
   )
 }
 
-function toAssetUrl(path) {
-  if (!path) return ''
-  if (/^https?:\/\//i.test(path)) return path
-  if (API_ORIGIN) return `${API_ORIGIN}${path}`
-  return path
-}
 
 const styles = {
   shell: {

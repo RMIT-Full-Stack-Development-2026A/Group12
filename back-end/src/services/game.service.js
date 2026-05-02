@@ -649,6 +649,11 @@ const emitSessionUpdated = (roomCode, session) => {
   io.to(roomCode).emit('session_updated', session);
 };
 
+const emitSessionUpdatedById = (sessionId, session) => {
+  const io = getIO();
+  io.to(`session:${sessionId}`).emit('session_updated', session);
+};
+
 const emitRoomStarted = (roomCode, payload) => {
   const io = getIO();
   io.to(roomCode).emit('room_started', payload);
@@ -970,10 +975,6 @@ const makeMove = async ({ sessionId, row, col, marker }) => {
 
   await sessionRepo.save(session);
 
-  if (session.gameType === 'SINGLE' && session.status === 'PLAYING' && session.currentTurn === session.player2Marker) {
-    session = await applyBotMoveToSession(session);
-  }
-
   if (session.roomId) {
     const room = await roomRepo.findById(session.roomId);
 
@@ -986,6 +987,22 @@ const makeMove = async ({ sessionId, row, col, marker }) => {
       }
 
       emitSessionUpdated(room.roomCode, session);
+    }
+  }
+
+  if (session.gameType === 'SINGLE') {
+    const sessionIdForChannel = String(session._id);
+    emitSessionUpdatedById(sessionIdForChannel, session);
+
+    if (session.status === 'PLAYING' && session.currentTurn === session.player2Marker) {
+      setImmediate(async () => {
+        try {
+          const updatedSession = await applyBotMoveToSession(session);
+          emitSessionUpdatedById(sessionIdForChannel, updatedSession);
+        } catch (err) {
+          console.error('[makeMove] async AI move failed:', err);
+        }
+      });
     }
   }
 
@@ -1108,6 +1125,17 @@ const playAgain = async ({ userId, roomCode }) => {
   };
 };
 
+const listWaitingRooms = async () => {
+  const rooms = await roomRepo.findWaitingRooms();
+  return rooms.map((room) => ({
+    roomCode: room.roomCode,
+    boardSize: room.boardSize,
+    hostMarker: room.hostMarker,
+    hostUsername: room.players?.[0]?.userId?.username || 'Unknown',
+    createdAt: room.createdAt,
+  }));
+};
+
 module.exports = {
   createRoom,
   joinRoom,
@@ -1115,5 +1143,6 @@ module.exports = {
   makeMove,
   getRoom,
   getSessionByRoom,
-  playAgain
+  playAgain,
+  listWaitingRooms
 };

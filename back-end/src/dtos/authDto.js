@@ -36,9 +36,6 @@ function mapSafeUser(user) {
     role: user.role,
     isActive: user.isActive,
     isPremium: user.isPremium,
-    walletBalance: user.walletBalance,
-    failedLogins: user.failedLogins,
-    lockUntil: user.lockUntil,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt
   };

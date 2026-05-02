@@ -1,4 +1,4 @@
-const authService = require('../services/authService');
+const { auth: authService } = require('../services');
 const {
   mapRegisterPayload,
   mapLoginPayload

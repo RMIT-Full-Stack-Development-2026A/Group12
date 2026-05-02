@@ -1,98 +1,43 @@
-import { API_ROOT_URL } from '../config/appConfig';
+import { apiClient } from './ApiClient';
 
-const ROOMS_URL = `${API_ROOT_URL}/rooms`;
+const ROOMS = '/rooms';
 
-async function postJson(url, body) {
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(body),
-  });
-
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(data.message || 'Request failed');
-  }
-
-  return data;
-}
-
-async function getJson(url) {
-  const response = await fetch(url, {
-    method: 'GET',
-  });
-
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(data.message || 'Request failed');
-  }
-
-  return data;
-}
-
-export const createGame = async ({
-  userId,
-  gameMode,
-  marker,
-  boardSize,
-  aiLevel = 'easy',
-  starterMarker,
-}) => {
-  return postJson(`${ROOMS_URL}/create`, {
-    userId,
-    gameMode,
-    marker,
-    boardSize,
-    aiLevel,
-    starterMarker,
-  });
+export const createGame = async ({ userId, gameMode, marker, boardSize, aiLevel = 'easy', starterMarker }) => {
+  const res = await apiClient.post(`${ROOMS}/create`, { userId, gameMode, marker, boardSize, aiLevel, starterMarker });
+  return res.data;
 };
-//     player2Marker,
-//     starterMarker,
-//   })
-// }
 
 export const joinRoom = async ({ roomCode, userId, marker }) => {
-  return postJson(`${ROOMS_URL}/join/${roomCode}`, {
-    userId,
-    marker,
-  });
+  const res = await apiClient.post(`${ROOMS}/join/${roomCode}`, { userId, marker });
+  return res.data;
 };
 
 export const startRoom = async ({ roomCode, userId, starterMarker }) => {
-  return postJson(`${ROOMS_URL}/${roomCode}/start`, {
-    userId,
-    starterMarker,
-  });
+  const res = await apiClient.post(`${ROOMS}/${roomCode}/start`, { userId, starterMarker });
+  return res.data;
 };
 
 export const playAgain = async ({ roomCode, userId }) => {
-  return postJson(`${ROOMS_URL}/${roomCode}/play-again`, {
-    userId,
-  });
+  const res = await apiClient.post(`${ROOMS}/${roomCode}/play-again`, { userId });
+  return res.data;
 };
-//     starterMarker,
-//   })
-// }
 
 export const getSessionByRoom = async (roomCode) => {
-  return getJson(`${ROOMS_URL}/${roomCode}/session`);
+  const res = await apiClient.get(`${ROOMS}/${roomCode}/session`);
+  return res.data;
 };
 
 export const makeMove = async ({ sessionId, row, col, marker }) => {
-  return postJson(`${ROOMS_URL}/move`, {
-    sessionId,
-    row,
-    col,
-    marker,
-  });
+  const res = await apiClient.post(`${ROOMS}/move`, { sessionId, row, col, marker });
+  return res.data;
 };
 
 export const surrenderGame = async ({ sessionId, marker }) => {
-  return postJson(`${ROOMS_URL}/surrender`, {
-    sessionId,
-    marker,
-  })
-}
+  const res = await apiClient.post(`${ROOMS}/surrender`, { sessionId, marker });
+  return res.data;
+};
+
+export const getWaitingRooms = async () => {
+  const res = await apiClient.get(`${ROOMS}/arena`);
+  return res.data;
+};
