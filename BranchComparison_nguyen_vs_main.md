@@ -2,7 +2,7 @@
 
 > Tài liệu này mô tả toàn bộ thay đổi trong branch `nguyen` so với `main`.  
 > Dùng để báo cáo với teammates về những gì đã được thêm/sửa/xóa.  
-> Cập nhật: 2026-05-05 (lần 4)
+> Cập nhật: 2026-05-05 (lần 6)
 
 ---
 
@@ -13,7 +13,7 @@
 | File mới (frontend) | 9 |
 | File mới (backend) | 2 |
 | File bị xóa | 1 |
-| File sửa đổi | 30 |
+| File sửa đổi | 33 |
 | **Tổng dòng thêm** | **+2136** |
 | **Tổng dòng xóa** | **−2392** (chủ yếu do refactor, không mất tính năng) |
 
@@ -107,15 +107,26 @@ File này có logic JWT giống hệt `middleware/jwtAuth.js`. Branch `nguyen` x
 
 ---
 
-### 1.7 Auth DTO — Bỏ field nhạy cảm
+### 1.7 Auth DTO — Response an toàn cho user
 
 **File:** [back-end/src/dtos/authDto.js](back-end/src/dtos/authDto.js)
 
-`mapSafeUser()` đã xóa `failedLogins`, `lockUntil`, `walletBalance` khỏi response — tránh lộ internal state của user.
+`mapSafeUser()` kiểm soát chính xác những field nào được trả về client:
+
+| Field | Có trong response? | Lý do |
+|-------|--------------------|-------|
+| `isPremium` | ✅ Có | Frontend cần để quyết định có cho phép replay moves không |
+| `isActive` | ✅ Có | UI có thể hiển thị trạng thái tài khoản |
+| `failedLogins` | ❌ Không | Internal security state — không lộ ra ngoài |
+| `lockUntil` | ❌ Không | Internal security state — không lộ ra ngoài |
+| `walletBalance` | ❌ Không | Không cần thiết ở mọi response |
+| `passwordHash` | ❌ Không | Tuyệt đối không trả về |
+
+> **Quan trọng:** `failedLogins` và `lockUntil` bị ẩn khỏi response nhưng **phải tồn tại trong schema** để cơ chế brute-force (1.8) hoạt động. Xem lỗi schema và cách fix ở **→ 1.10**.
 
 ---
 
-### 1.8 Auth Service — Brute-force đúng spec
+### 1.8 Auth Service — Brute-force protection
 
 **File:** [back-end/src/services/authService.js](back-end/src/services/authService.js)
 
@@ -124,6 +135,14 @@ MAX_FAILED_LOGINS = 5      // block sau 5 lần fail
 LOCK_DURATION_MS  = 60000  // trong vòng 60 giây
 ```
 
+Flow:
+1. Sai password → `failedLogins++`, lưu vào DB.
+2. `failedLogins >= 5` → set `lockUntil = now + 60s`, reset `failedLogins = 0`.
+3. Mọi login (kể cả đúng password) trong thời gian lock → 423 Locked.
+4. Sau 60 giây, lock tự hết — lần login tiếp theo reset counter.
+
+> **Lưu ý:** Cơ chế này hoàn toàn phụ thuộc vào `failedLogins` và `lockUntil` được persist xuống MongoDB. Schema `user.js` ban đầu thiếu 2 field này — Mongoose strict mode sẽ bỏ qua chúng khi save, khiến counter luôn bằng 0 sau mỗi request. **Xem fix ở → 1.10.**
+
 ---
 
 ### 1.9 UserProfile Controller — Simplify error handler
@@ -131,6 +150,44 @@ LOCK_DURATION_MS  = 60000  // trong vòng 60 giây
 **File:** [back-end/src/controller/userProfileController.js](back-end/src/controller/userProfileController.js)
 
 Gộp các nhánh if/else của `handleError()` thành ternary — không thay đổi logic, chỉ giảm dòng code.
+
+---
+
+### 1.10 Auth — User Schema fix (bug fix)
+
+**File:** [back-end/src/models/user.js](back-end/src/models/user.js)
+
+Schema ban đầu chỉ có 7 field. Thiếu 3 field mà `authService.js` cần để hoạt động đúng:
+
+| Field thiếu | Dùng ở đâu | Hậu quả khi thiếu |
+|-------------|-----------|-------------------|
+| `isPremium` | `mapSafeUser()` trả về frontend; `ProfilePage` đọc để gate replay feature | Luôn `undefined` → replay moves không bao giờ hoạt động dù user là premium |
+| `failedLogins` | Brute-force counter trong `authService.login()` | Counter không persist → lockout không hoạt động |
+| `lockUntil` | Thời điểm hết lock trong `authService.login()` | Lock không persist → user có thể brute-force không giới hạn |
+
+**Fix:**
+```js
+isPremium:    { type: Boolean, default: false },
+failedLogins: { type: Number,  default: 0 },
+lockUntil:    { type: Date,    default: null }
+```
+
+**Regression test thủ công (12 case, tất cả pass):**
+
+| # | Test case | Kết quả kỳ vọng | Kết quả thực tế |
+|---|-----------|-----------------|-----------------|
+| 1 | Register — thiếu field | 400 "required" | ✅ |
+| 2 | Register — password yếu (không có uppercase/number/special) | 400 password policy | ✅ |
+| 3 | Register — country không hợp lệ | 400 "must be from allowed list" | ✅ |
+| 4 | Register — username có space và `!` | 400 username regex | ✅ |
+| 5 | Register hợp lệ | 201 + `isPremium: false` trong response | ✅ |
+| 6 | Register trùng email | 409 | ✅ |
+| 7 | Register trùng username | 409 | ✅ |
+| 8 | Login bằng email | 200 + token | ✅ |
+| 9 | Login bằng username | 200 + token | ✅ |
+| 10 | Brute-force: lần thứ 5 sai → lock | 423 + `lockUntil` trong body | ✅ |
+| 11 | Login đúng password khi đang bị lock | 423 bị chặn | ✅ |
+| 12 | Gửi `isPremium: true` lúc register | 400 bị từ chối | ✅ |
 
 ---
 
@@ -287,6 +344,20 @@ Thêm `VIEWS.ARENA` và navigation đến `ArenaPage`.
 
 ---
 
+### 2.3 AuthForm — Hiển thị password requirements
+
+**Files sửa đổi:**
+- [full-stack-group-assignment/src/design/AuthForm.jsx](full-stack-group-assignment/src/design/AuthForm.jsx)
+- [full-stack-group-assignment/src/design/AuthForm.css](full-stack-group-assignment/src/design/AuthForm.css)
+
+Form register không hiển thị password policy trước khi submit — user phải đoán hoặc submit sai rồi mới biết. Fix: thêm hint text nhỏ ngay bên dưới input Password:
+
+```
+Min 8 chars · uppercase · number · special ($ # @ !)
+```
+
+Style `.auth-hint` thêm vào `AuthForm.css` — `font-size: 12px`, màu `#666`.
+
 ---
 
 ## 2.5 Thay đổi bổ sung (cập nhật lần 2)
@@ -416,31 +487,6 @@ Chạy mỗi 15 phút cùng với cleanup Waiting Rooms.
 
 ---
 
-## 3. Tổng kết theo tính năng SRS
-
-| Tính năng | Trạng thái sau branch `nguyen` |
-|-----------|-------------------------------|
-| Arena (4.3.1) | ✅ Done — Waiting Rooms + Dueling Rooms, Spectate live game |
-| REST HTTP Helper (A.2.b) | ✅ Done — `ApiClient.js` |
-| Bot move async/realtime (SINGLE) | ✅ Done — `setImmediate` + session channel |
-| Highlight đường thắng (4.1.4) | ✅ Done — `computeWinningCells` + ô vàng |
-| Winner animation (4.2.6) | ✅ Done — `winnerPop` keyframe |
-| Avatar trong game (4.2.1) | ✅ Done — `<img>` trong PlayerCard |
-| Profile componentized (A.3.a) | ✅ Done — 4 sub-components tách riêng |
-| Session history (3.1.2, 3.3.1) | ✅ Done — `SessionHistoryPanel` với filter/search |
-| DTO an toàn — không lộ field nhạy cảm (A.3.1) | ✅ Done — `mapSafeUser` |
-| Brute-force (2.2.1) | ✅ Done — MAX=5, LOCK=60s |
-
----
-
-| Dueling Room + Spectate (4.3.1 mở rộng) | ✅ Done — PLAYING rooms hiện trong Arena, `SpectatorPage.jsx` xem live |
-| Waiting Room timeout 2h | ✅ Done — `hostLastSeen` + cleanup job 15 phút |
-| Host presence tracking | ✅ Done — `host_heartbeat` socket event + `useRoomSocket` gửi mỗi 60s |
-| Session History UI fix | ✅ Done — `SessionTablePanel` full-width bên dưới grid, không còn nhét trong cột trái |
-| Dueling Room auto-delete 2h | ✅ Done — `cleanupStaleDuelingRooms` qua `session.updatedAt` |
-
----
-
 ## 2.6 Backend — AI Complexity Refactor (2026-05-05)
 
 **Files sửa đổi:**
@@ -511,6 +557,29 @@ Sau khi tất cả caller được chuyển sang in-place, `cloneBoard` không c
 | `evaluateBoardForMarker` | n + windows arrays/call | 0 |
 | `generateUniqueRoomCode` | unbounded loop | max 20 DB queries |
 | session history aggregate | unbounded result | capped 500 rows |
+
+---
+
+## 3. Tổng kết theo tính năng SRS
+
+| Tính năng | Trạng thái sau branch `nguyen` |
+|-----------|-------------------------------|
+| Arena (4.3.1) | ✅ Done — Waiting Rooms + Dueling Rooms, Spectate live game |
+| REST HTTP Helper (A.2.b) | ✅ Done — `ApiClient.js` |
+| Bot move async/realtime (SINGLE) | ✅ Done — `setImmediate` + session channel |
+| Highlight đường thắng (4.1.4) | ✅ Done — `computeWinningCells` + ô vàng |
+| Winner animation (4.2.6) | ✅ Done — `winnerPop` keyframe |
+| Avatar trong game (4.2.1) | ✅ Done — `<img>` trong PlayerCard |
+| Profile componentized (A.3.a) | ✅ Done — 4 sub-components tách riêng |
+| Session history (3.1.2, 3.3.1) | ✅ Done — `SessionHistoryPanel` với filter/search |
+| DTO an toàn — không lộ field nhạy cảm (A.3.1) | ✅ Done — `mapSafeUser` ẩn `failedLogins`/`lockUntil`, giữ `isPremium` |
+| Brute-force (2.2.1) | ✅ Done — MAX=5, LOCK=60s; schema fix ở 1.10 đảm bảo persist đúng |
+| Dueling Room + Spectate (4.3.1 mở rộng) | ✅ Done — PLAYING rooms hiện trong Arena, `SpectatorPage.jsx` xem live |
+| Waiting Room timeout 2h | ✅ Done — `hostLastSeen` + cleanup job 15 phút |
+| Host presence tracking | ✅ Done — `host_heartbeat` socket event + `useRoomSocket` gửi mỗi 60s |
+| Session History UI fix | ✅ Done — `SessionTablePanel` full-width bên dưới grid |
+| Dueling Room auto-delete 2h | ✅ Done — `cleanupStaleDuelingRooms` qua `session.updatedAt` |
+| Register UX + schema integrity | ✅ Done — password hint, `isPremium`/`failedLogins`/`lockUntil` vào schema |
 
 ---
 

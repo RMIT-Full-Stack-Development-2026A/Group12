@@ -324,6 +324,9 @@ function AuthForm({ onAuthSuccess, onClose }) {
                 value={registerForm.password}
                 onChange={updateRegisterField('password')}
               />
+              <span className="auth-hint">
+                Min 8 chars · uppercase · number · special ($&nbsp;#&nbsp;@&nbsp;!)
+              </span>
             </label>
             <label>
               Confirm Password

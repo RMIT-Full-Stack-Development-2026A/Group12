@@ -114,6 +114,12 @@
   cursor: pointer;
 }
 
+.auth-hint {
+  font-size: 12px;
+  color: #666;
+  margin-top: -2px;
+}
+
 @media (max-width: 480px) {
   .auth-card {
     padding: 14px;
