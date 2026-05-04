@@ -78,6 +78,7 @@ function CreateRoomForm({ currentUser, onRequireLogin, initialJoinCode, onInitia
   useRoomSocket({
     roomCode,
     sessionId,
+    isHost,
     setResultData,
     setShowBoard,
     setError,

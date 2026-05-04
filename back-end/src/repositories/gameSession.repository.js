@@ -42,6 +42,22 @@ const finishSession = (sessionId, payload) => {
   );
 };
 
+const findStalePlayingSessions = (cutoffTime) => {
+  return GameSession.find({
+    status: 'PLAYING',
+    gameType: 'ONLINE',
+    updatedAt: { $lt: cutoffTime }
+  }).select('_id roomId');
+};
+
+const abortSession = (sessionId) => {
+  return GameSession.findByIdAndUpdate(
+    sessionId,
+    { status: 'FINISHED', result: 'ABORT', endTime: new Date() },
+    { new: true }
+  );
+};
+
 module.exports = {
   findById,
   create,
@@ -50,5 +66,7 @@ module.exports = {
   findLatestByRoomId,
   findAllByRoomId,
   countByRoomId,
-  finishSession
+  finishSession,
+  findStalePlayingSessions,
+  abortSession
 };

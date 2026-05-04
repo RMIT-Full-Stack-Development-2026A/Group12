@@ -1133,7 +1133,45 @@ const listWaitingRooms = async () => {
     hostMarker: room.hostMarker,
     hostUsername: room.players?.[0]?.userId?.username || 'Unknown',
     createdAt: room.createdAt,
+    roomType: 'WAITING',
+    status: room.status,
   }));
+};
+
+const listArenaRooms = async () => {
+  const rooms = await roomRepo.findArenaRooms();
+  return rooms.map((room) => ({
+    roomCode: room.roomCode,
+    boardSize: room.boardSize,
+    hostMarker: room.hostMarker,
+    hostUsername: room.players?.[0]?.userId?.username || 'Unknown',
+    player2Username: room.players?.[1]?.userId?.username || null,
+    createdAt: room.createdAt,
+    roomType: room.status === 'PLAYING' ? 'DUELING' : 'WAITING',
+    status: room.status,
+  }));
+};
+
+const cleanupExpiredWaitingRooms = async () => {
+  return roomRepo.deleteExpiredWaitingRooms();
+};
+
+const cleanupStaleDuelingRooms = async () => {
+  const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
+  const staleSessions = await sessionRepo.findStalePlayingSessions(twoHoursAgo);
+  let count = 0;
+  for (const session of staleSessions) {
+    await sessionRepo.abortSession(session._id);
+    if (session.roomId) {
+      await roomRepo.updateById(session.roomId, {
+        status: 'CLOSED',
+        currentSessionId: null,
+        closedAt: new Date()
+      });
+    }
+    count += 1;
+  }
+  return { closedDuelingRooms: count };
 };
 
 module.exports = {
@@ -1144,5 +1182,8 @@ module.exports = {
   getRoom,
   getSessionByRoom,
   playAgain,
-  listWaitingRooms
+  listWaitingRooms,
+  listArenaRooms,
+  cleanupExpiredWaitingRooms,
+  cleanupStaleDuelingRooms,
 };

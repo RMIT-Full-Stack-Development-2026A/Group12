@@ -19,6 +19,31 @@ const findWaitingRooms = () => {
     .limit(50);
 };
 
+const findArenaRooms = () => {
+  return GameRoom.find({ status: { $in: ['WAITING', 'PLAYING'] } })
+    .populate('players.userId', 'username avatarUrl')
+    .sort({ createdAt: -1 })
+    .limit(50);
+};
+
+const updateHostLastSeen = (roomCode) => {
+  return GameRoom.findOneAndUpdate(
+    { roomCode, status: 'WAITING' },
+    { hostLastSeen: new Date() }
+  );
+};
+
+const deleteExpiredWaitingRooms = () => {
+  const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
+  return GameRoom.deleteMany({
+    status: 'WAITING',
+    $or: [
+      { hostLastSeen: null, createdAt: { $lt: twoHoursAgo } },
+      { hostLastSeen: { $lt: twoHoursAgo } }
+    ]
+  });
+};
+
 const create = (payload) => {
   return GameRoom.create(payload);
 };
@@ -75,6 +100,9 @@ module.exports = {
   findByRoomCode,
   findByRoomCodeWithPlayers,
   findWaitingRooms,
+  findArenaRooms,
+  updateHostLastSeen,
+  deleteExpiredWaitingRooms,
   create,
   save,
   updateById,

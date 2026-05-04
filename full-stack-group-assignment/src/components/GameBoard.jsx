@@ -35,6 +35,7 @@ function GameBoard({
   onPlayAgain,
   onBackToRoom,
   playAgainLoading = false,
+  readOnly = false,
 }) {
   const [loadingCell, setLoadingCell] = useState(null);
   const [error, setError] = useState('');
@@ -191,6 +192,10 @@ function GameBoard({
     <div style={{ ...styles.wrapper, background: currentTheme.soft }}>
       <h2 style={{ ...styles.title, color: currentTheme.accent }}>Game Board</h2>
 
+      {readOnly ? (
+        <div style={styles.spectatorBanner}>Spectating — view only</div>
+      ) : null}
+
       {status === 'WIN' && winnerDisplayName ? (
         <div style={styles.winnerBanner}>
           {winnerDisplayName} wins!
@@ -253,8 +258,9 @@ function GameBoard({
             <button
               key={index}
               type="button"
-              onClick={() => handleCellClick(index)}
+              onClick={readOnly ? undefined : () => handleCellClick(index)}
               disabled={
+                readOnly ||
                 loadingCell === index ||
                 isAiThinking ||
                 isFinished ||
@@ -288,7 +294,7 @@ function GameBoard({
         </div>
       )}
 
-      {!isFinished ? (
+      {!isFinished && !readOnly ? (
         <div style={styles.surrenderWrap}>
           <button
             type="button"
@@ -307,6 +313,17 @@ function GameBoard({
 const styles = {
   wrapper: { padding: 24, textAlign: 'center', fontSize: 14 },
   title: { marginBottom: 18, fontSize: 18 },
+  spectatorBanner: {
+    background: '#e8f4fd',
+    border: '1px solid #2196f3',
+    borderRadius: 8,
+    padding: '7px 18px',
+    fontSize: 13,
+    fontWeight: 600,
+    color: '#1565c0',
+    display: 'inline-block',
+    marginBottom: 12,
+  },
   winnerBanner: {
     animation: 'winnerPop 0.5s ease forwards',
     background: '#fffbe6',

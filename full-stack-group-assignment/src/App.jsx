@@ -5,6 +5,7 @@ import CreateRoomPage from './pages/CreateRoomPage'
 import HomePage from './pages/HomePage'
 import ProfilePage from './pages/ProfilePage'
 import ArenaPage from './pages/ArenaPage'
+import SpectatorPage from './pages/SpectatorPage'
 import { TOKEN_STORAGE_KEY } from './config/appConfig'
 import { toAssetUrl } from './utils/gameUtils'
 
@@ -14,6 +15,7 @@ const VIEWS = {
   CREATE: 'create',
   PROFILE: 'profile',
   ARENA: 'arena',
+  SPECTATE: 'spectate',
 }
 
 function App() {
@@ -25,6 +27,7 @@ function App() {
   const isAuthed = Boolean(currentUser)
 
   const [arenaJoinCode, setArenaJoinCode] = useState('')
+  const [spectateRoomCode, setSpectateRoomCode] = useState('')
 
   const shellTitle = useMemo(() => {
     if (view === VIEWS.CREATE) return 'Create Room'
@@ -63,6 +66,11 @@ function App() {
   function handleJoinFromArena(roomCode) {
     setArenaJoinCode(roomCode)
     setView(VIEWS.CREATE)
+  }
+
+  function handleSpectateRoom(roomCode) {
+    setSpectateRoomCode(roomCode)
+    setView(VIEWS.SPECTATE)
   }
 
   const requireCreateLogin = useCallback(() => {
@@ -189,7 +197,16 @@ function App() {
           <ArenaPage
             currentUser={currentUser}
             onJoinRoom={handleJoinFromArena}
+            onSpectateRoom={handleSpectateRoom}
             onRequireLogin={requireCreateLogin}
+          />
+        ) : null}
+
+        {view === VIEWS.SPECTATE ? (
+          <SpectatorPage
+            roomCode={spectateRoomCode}
+            currentUser={currentUser}
+            onBack={goArena}
           />
         ) : null}
 

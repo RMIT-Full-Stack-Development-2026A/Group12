@@ -12,7 +12,7 @@ import {
 import ProfileAvatarSection from '../components/profile/ProfileAvatarSection';
 import ProfileInfoForm from '../components/profile/ProfileInfoForm';
 import ProfilePasswordForm from '../components/profile/ProfilePasswordForm';
-import SessionHistoryPanel from '../components/profile/SessionHistoryPanel';
+import SessionHistoryPanel, { SessionTablePanel } from '../components/profile/SessionHistoryPanel';
 
 const SESSION_PAGE_SIZE = 10;
 
@@ -274,22 +274,6 @@ function ProfilePage({ currentUser, onRequestLogin, onUserUpdated }) {
                   sessionMessage={sessionMessage}
                   isViewAllOpen={isViewAllOpen}
                   setIsViewAllOpen={setIsViewAllOpen}
-                  sessionSearch={sessionSearch}
-                  setSessionSearch={setSessionSearch}
-                  sessionFilters={sessionFilters}
-                  updateSessionFilter={updateSessionFilter}
-                  clearSessionFilters={clearSessionFilters}
-                  sessionPage={sessionPage}
-                  setSessionPage={setSessionPage}
-                  totalSessionPages={totalSessionPages}
-                  currentSessionPage={currentSessionPage}
-                  pagedSessions={pagedSessions}
-                  filteredSessions={filteredSessions}
-                  replaySessionId={replaySessionId}
-                  onReplay={handleReplay}
-                  onDelete={handleDeleteSession}
-                  currentUser={currentUser}
-                  profile={profile}
                 />
               </aside>
 
@@ -316,6 +300,27 @@ function ProfilePage({ currentUser, onRequestLogin, onUserUpdated }) {
                 />
               </section>
             </div>
+
+            {isViewAllOpen ? (
+              <SessionTablePanel
+                sessionSearch={sessionSearch}
+                setSessionSearch={setSessionSearch}
+                sessionFilters={sessionFilters}
+                updateSessionFilter={updateSessionFilter}
+                clearSessionFilters={clearSessionFilters}
+                sessionPage={sessionPage}
+                setSessionPage={setSessionPage}
+                totalSessionPages={totalSessionPages}
+                currentSessionPage={currentSessionPage}
+                pagedSessions={pagedSessions}
+                filteredSessions={filteredSessions}
+                replaySessionId={replaySessionId}
+                onReplay={handleReplay}
+                onDelete={handleDeleteSession}
+                currentUser={currentUser}
+                profile={profile}
+              />
+            ) : null}
           </>
         )}
       </div>

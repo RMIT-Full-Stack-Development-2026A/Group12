@@ -191,6 +191,11 @@ const GameRoomSchema = new mongoose.Schema({
   closedAt: {
     type: Date,
     default: null
+  },
+
+  hostLastSeen: {
+    type: Date,
+    default: null
   }
 });
 

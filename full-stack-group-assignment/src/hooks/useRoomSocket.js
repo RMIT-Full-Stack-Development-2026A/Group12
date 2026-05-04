@@ -4,12 +4,23 @@ import socket from '../socket';
 export default function useRoomSocket({
   roomCode,
   sessionId,
+  isHost = false,
   setResultData,
   setShowBoard,
   setError,
   setInfoMessage,
   onFetchSession,
 }) {
+  // Host heartbeat: keep the waiting room alive while host is on the lobby page
+  useEffect(() => {
+    if (!roomCode || !isHost) return;
+    socket.emit('host_heartbeat', roomCode);
+    const interval = setInterval(() => {
+      socket.emit('host_heartbeat', roomCode);
+    }, 60 * 1000);
+    return () => clearInterval(interval);
+  }, [roomCode, isHost]);
+
   useEffect(() => {
     if (!roomCode && !sessionId) return;
 

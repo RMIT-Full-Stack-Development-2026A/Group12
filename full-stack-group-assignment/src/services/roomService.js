@@ -41,3 +41,13 @@ export const getWaitingRooms = async () => {
   const res = await apiClient.get(`${ROOMS}/arena`);
   return res.data;
 };
+
+export const getArenaRooms = async () => {
+  const res = await apiClient.get(`${ROOMS}/arena`);
+  return res.data;
+};
+
+export const getRoom = async (roomCode) => {
+  const res = await apiClient.get(`${ROOMS}/${roomCode}`);
+  return res.data;
+};

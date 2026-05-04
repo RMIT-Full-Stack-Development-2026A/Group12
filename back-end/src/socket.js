@@ -1,3 +1,5 @@
+const roomRepo = require('./repositories/gameRoom.repository');
+
 let ioInstance = null;
 
 function initSocket(io) {
@@ -24,6 +26,13 @@ function initSocket(io) {
     socket.on('leave_session_channel', (sessionId) => {
       if (!sessionId) return;
       socket.leave(`session:${sessionId}`);
+    });
+
+    socket.on('host_heartbeat', async (roomCode) => {
+      if (!roomCode) return;
+      try {
+        await roomRepo.updateHostLastSeen(roomCode);
+      } catch (e) { /* ignore */ }
     });
 
     socket.on('disconnect', () => {

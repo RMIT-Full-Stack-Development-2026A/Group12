@@ -10,6 +10,7 @@ const authRouter = require('./router/authRouter');
 const userProfileRouter = require('./router/userProfileRouter');
 const roomRoutes = require('./router/roomRouter');
 const { initSocket } = require('./socket');
+const gameService = require('./services/game.service');
 
 const app = express();
 const PORT = Number(process.env.PORT) || 5000;
@@ -56,10 +57,30 @@ function startServer() {
   });
 }
 
+const CLEANUP_INTERVAL_MS = 15 * 60 * 1000;
+
+async function runRoomCleanup() {
+  try {
+    const waiting = await gameService.cleanupExpiredWaitingRooms();
+    if (waiting?.deletedCount) {
+      console.log(`[cleanup] Removed ${waiting.deletedCount} expired waiting room(s)`);
+    }
+    const dueling = await gameService.cleanupStaleDuelingRooms();
+    if (dueling?.closedDuelingRooms) {
+      console.log(`[cleanup] Closed ${dueling.closedDuelingRooms} stale dueling room(s)`);
+    }
+  } catch (e) {
+    console.error('[cleanup] Error:', e.message);
+  }
+}
+
 connectToDatabase()
   .then(startServer)
+  .then(() => {
+    setInterval(runRoomCleanup, CLEANUP_INTERVAL_MS);
+    runRoomCleanup();
+  })
   .catch((error) => {
     console.error('Unable to start server:', error.message);
     process.exit(1);
-  }
-);
+  });

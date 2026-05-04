@@ -151,7 +151,7 @@ const playAgainController = async (req, res) => {
 
 const listWaitingRoomsController = async (req, res) => {
   try {
-    const rooms = await gameService.listWaitingRooms();
+    const rooms = await gameService.listArenaRooms();
     return res.status(200).json({ success: true, data: rooms });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
