@@ -123,6 +123,8 @@ function getSessionHistoryByUserId(userId, query = {}) {
     }
   });
 
+  pipeline.push({ $limit: 500 });
+
   return GameSession.aggregate(pipeline).exec();
 }
 

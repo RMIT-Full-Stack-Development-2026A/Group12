@@ -11,17 +11,15 @@ const buildError = (message, status = 400) => {
   return err;
 };
 
+const MAX_ROOM_CODE_RETRIES = 20;
+
 const generateUniqueRoomCode = async () => {
-  let roomCode;
-  let exists = true;
-
-  while (exists) {
-    roomCode = generateRoomCode();
+  for (let i = 0; i < MAX_ROOM_CODE_RETRIES; i++) {
+    const roomCode = generateRoomCode();
     const room = await roomRepo.findByRoomCode(roomCode);
-    if (!room) exists = false;
+    if (!room) return roomCode;
   }
-
-  return roomCode;
+  throw buildError('Could not generate a unique room code, please try again', 503);
 };
 
 const getAlternativeMarker = (marker) => {
@@ -33,8 +31,6 @@ const isValidBoard = (board) => (
   && board.length > 0
   && board.every((row) => Array.isArray(row) && row.length === board.length)
 );
-
-const cloneBoard = (board) => board.map((row) => [...row]);
 
 const candidateCells = (board, radius = 2) => {
   if (!isValidBoard(board)) {
@@ -91,84 +87,50 @@ const createEmptyBoardCells = (board) => {
 
 const getTargetLength = (board) => (board.length === 3 ? 3 : 5);
 
-const evaluateWindow = (windowCells, marker, target) => {
-  const opponentCount = windowCells.filter((cell) => cell && cell !== marker).length;
-  if (opponentCount > 0) {
-    return 0;
-  }
-
-  const markerCount = windowCells.filter((cell) => cell === marker).length;
-  const emptyCount = windowCells.filter((cell) => !cell).length;
-
-  if (markerCount === target) return 1000000;
-  if (markerCount === target - 1 && emptyCount === 1) return 100000;
-  if (markerCount === target - 2 && emptyCount === 2) return 10000;
-  if (markerCount > 0) return markerCount * 20;
-
-  return 0;
-};
-
 const evaluateBoardForMarker = (board, marker) => {
   const size = board.length;
   const target = getTargetLength(board);
   let score = 0;
 
-  const addLineScore = (cells) => {
-    if (cells.length < target) {
-      return;
+  const scoreWindow = (getCell, offset) => {
+    let markerCount = 0;
+    let emptyCount = 0;
+    for (let j = 0; j < target; j++) {
+      const c = getCell(offset + j);
+      if (c === marker) markerCount += 1;
+      else if (!c) emptyCount += 1;
+      else return;
     }
-
-    for (let i = 0; i <= cells.length - target; i += 1) {
-      score += evaluateWindow(cells.slice(i, i + target), marker, target);
-    }
+    if (markerCount === target) score += 1000000;
+    else if (markerCount === target - 1 && emptyCount === 1) score += 100000;
+    else if (markerCount === target - 2 && emptyCount === 2) score += 10000;
+    else if (markerCount > 0) score += markerCount * 20;
   };
 
-  for (let r = 0; r < size; r += 1) {
-    addLineScore(board[r]);
+  const scoreLines = (getCell, len) => {
+    if (len < target) return;
+    for (let i = 0; i <= len - target; i++) scoreWindow(getCell, i);
+  };
+
+  for (let r = 0; r < size; r++) scoreLines((i) => board[r][i], size);
+  for (let c = 0; c < size; c++) scoreLines((i) => board[i][c], size);
+
+  for (let start = 0; start < size; start++) {
+    const len = size - start;
+    scoreLines((i) => board[start + i][i], len);
+    scoreLines((i) => board[start + i][size - 1 - i], len);
   }
-
-  for (let c = 0; c < size; c += 1) {
-    addLineScore(board.map((row) => row[c]));
-  }
-
-  for (let start = 0; start < size; start += 1) {
-    const diag = [];
-    const antiDiag = [];
-
-    for (let row = start, col = 0; row < size && col < size; row += 1, col += 1) {
-      diag.push(board[row][col]);
-    }
-
-    for (let row = start, col = size - 1; row < size && col >= 0; row += 1, col -= 1) {
-      antiDiag.push(board[row][col]);
-    }
-
-    addLineScore(diag);
-    addLineScore(antiDiag);
-  }
-
-  for (let startCol = 1; startCol < size; startCol += 1) {
-    const diag = [];
-    const antiDiag = [];
-
-    for (let row = 0, col = startCol; row < size && col < size; row += 1, col += 1) {
-      diag.push(board[row][col]);
-    }
-
-    for (let row = 0, col = startCol; row < size && col >= 0; row += 1, col -= 1) {
-      antiDiag.push(board[row][col]);
-    }
-
-    addLineScore(diag);
-    addLineScore(antiDiag);
+  for (let startCol = 1; startCol < size; startCol++) {
+    const len = size - startCol;
+    scoreLines((i) => board[i][startCol + i], len);
+    scoreLines((i) => board[i][startCol - i], startCol + 1);
   }
 
   return score;
 };
 
 const getPatternInsight = (board, row, col, marker) => {
-  const tempBoard = cloneBoard(board);
-  tempBoard[row][col] = marker;
+  board[row][col] = marker;
 
   const size = board.length;
   const target = getTargetLength(board);
@@ -187,23 +149,23 @@ const getPatternInsight = (board, row, col, marker) => {
 
     let r = row + dx;
     let c = col + dy;
-    while (r >= 0 && r < size && c >= 0 && c < size && tempBoard[r][c] === marker) {
+    while (r >= 0 && r < size && c >= 0 && c < size && board[r][c] === marker) {
       count += 1;
       r += dx;
       c += dy;
     }
-    if (r >= 0 && r < size && c >= 0 && c < size && tempBoard[r][c] === '') {
+    if (r >= 0 && r < size && c >= 0 && c < size && board[r][c] === '') {
       openEnds += 1;
     }
 
     r = row - dx;
     c = col - dy;
-    while (r >= 0 && r < size && c >= 0 && c < size && tempBoard[r][c] === marker) {
+    while (r >= 0 && r < size && c >= 0 && c < size && board[r][c] === marker) {
       count += 1;
       r -= dx;
       c -= dy;
     }
-    if (r >= 0 && r < size && c >= 0 && c < size && tempBoard[r][c] === '') {
+    if (r >= 0 && r < size && c >= 0 && c < size && board[r][c] === '') {
       openEnds += 1;
     }
 
@@ -212,22 +174,18 @@ const getPatternInsight = (board, row, col, marker) => {
     }
   });
 
-  return {
-    attackScore: evaluateBoardForMarker(tempBoard, marker),
-    openLines
-  };
+  const attackScore = evaluateBoardForMarker(board, marker);
+  board[row][col] = '';
+  return { attackScore, openLines };
 };
 
 const findWinningMove = (board, marker, cells = candidateCells(board)) => {
   for (const cell of cells) {
-    const tempBoard = cloneBoard(board);
-    tempBoard[cell.rowIndex][cell.colIndex] = marker;
-    const status = getGameStatus(tempBoard, cell.rowIndex, cell.colIndex);
-    if (status.status === 'WIN') {
-      return cell;
-    }
+    board[cell.rowIndex][cell.colIndex] = marker;
+    const status = getGameStatus(board, cell.rowIndex, cell.colIndex);
+    board[cell.rowIndex][cell.colIndex] = '';
+    if (status.status === 'WIN') return cell;
   }
-
   return null;
 };
 
@@ -292,6 +250,8 @@ const evaluateHardBoard = (board, botMarker, opponentMarker) => {
   return baseScore + centerBonus * 20 + flexibilityBonus * 100;
 };
 
+const CACHE_MARKER_MAP = { '': '0', X: '1', O: '2', A: '3', B: '4', '△': '5', '○': '6' };
+
 const minimax = (board, depth, alpha, beta, isMaximizing, botMarker, opponentMarker, options = {}) => {
   const { deadline, maxCandidates = 20, cache = new Map() } = options;
 
@@ -303,7 +263,9 @@ const minimax = (board, depth, alpha, beta, isMaximizing, botMarker, opponentMar
     };
   }
 
-  const cacheKey = `${isMaximizing ? 'MAX' : 'MIN'}|${depth}|${board.map((row) => row.join('.')).join('|')}`;
+  const cacheKey = `${isMaximizing ? 1 : 0}${depth}${
+    board.map((row) => row.map((c) => CACHE_MARKER_MAP[c] ?? '0').join('')).join('')
+  }`;
   if (cache.has(cacheKey)) {
     return cache.get(cacheKey);
   }
@@ -335,18 +297,16 @@ const minimax = (board, depth, alpha, beta, isMaximizing, botMarker, opponentMar
     let bestScore = -Infinity;
     let timedOut = false;
     for (const cell of cells) {
-      const nextBoard = cloneBoard(board);
-      nextBoard[cell.rowIndex][cell.colIndex] = botMarker;
-      const result = minimax(nextBoard, depth - 1, alpha, beta, false, botMarker, opponentMarker, options);
+      board[cell.rowIndex][cell.colIndex] = botMarker;
+      const result = minimax(board, depth - 1, alpha, beta, false, botMarker, opponentMarker, options);
+      board[cell.rowIndex][cell.colIndex] = '';
       timedOut = timedOut || Boolean(result.timedOut);
       if (result.score > bestScore) {
         bestScore = result.score;
         bestCell = cell;
       }
       alpha = Math.max(alpha, bestScore);
-      if (beta <= alpha) {
-        break;
-      }
+      if (beta <= alpha) break;
     }
 
     const maxResult = { score: bestScore, cell: bestCell, timedOut };
@@ -357,18 +317,16 @@ const minimax = (board, depth, alpha, beta, isMaximizing, botMarker, opponentMar
   let bestScore = Infinity;
   let timedOut = false;
   for (const cell of cells) {
-    const nextBoard = cloneBoard(board);
-    nextBoard[cell.rowIndex][cell.colIndex] = opponentMarker;
-    const result = minimax(nextBoard, depth - 1, alpha, beta, true, botMarker, opponentMarker, options);
+    board[cell.rowIndex][cell.colIndex] = opponentMarker;
+    const result = minimax(board, depth - 1, alpha, beta, true, botMarker, opponentMarker, options);
+    board[cell.rowIndex][cell.colIndex] = '';
     timedOut = timedOut || Boolean(result.timedOut);
     if (result.score < bestScore) {
       bestScore = result.score;
       bestCell = cell;
     }
     beta = Math.min(beta, bestScore);
-    if (beta <= alpha) {
-      break;
-    }
+    if (beta <= alpha) break;
   }
 
   const minResult = { score: bestScore, cell: bestCell, timedOut };
@@ -378,25 +336,21 @@ const minimax = (board, depth, alpha, beta, isMaximizing, botMarker, opponentMar
 
 const findForkMove = (board, marker, cells = candidateCells(board, 2)) => {
   for (const cell of cells) {
-    const tempBoard = cloneBoard(board);
-    tempBoard[cell.rowIndex][cell.colIndex] = marker;
-
-    const nextCandidates = candidateCells(tempBoard, 2);
+    board[cell.rowIndex][cell.colIndex] = marker;
+    const nextCandidates = candidateCells(board, 2);
     let winningThreats = 0;
 
     for (const nextCell of nextCandidates) {
-      const nextBoard = cloneBoard(tempBoard);
-      nextBoard[nextCell.rowIndex][nextCell.colIndex] = marker;
-      const status = getGameStatus(nextBoard, nextCell.rowIndex, nextCell.colIndex);
-
-      if (status.status === 'WIN') {
-        winningThreats += 1;
-      }
-
-      if (winningThreats >= 2) {
+      board[nextCell.rowIndex][nextCell.colIndex] = marker;
+      const status = getGameStatus(board, nextCell.rowIndex, nextCell.colIndex);
+      board[nextCell.rowIndex][nextCell.colIndex] = '';
+      if (status.status === 'WIN' && ++winningThreats >= 2) {
+        board[cell.rowIndex][cell.colIndex] = '';
         return cell;
       }
     }
+
+    board[cell.rowIndex][cell.colIndex] = '';
   }
 
   return null;
