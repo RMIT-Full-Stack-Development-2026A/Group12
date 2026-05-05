@@ -158,6 +158,23 @@ const listWaitingRoomsController = async (req, res) => {
   }
 };
 
+const closeRoomController = async (req, res) => {
+  try {
+    const { roomCode } = req.params;
+    const { userId } = req.body;
+    if (!userId) {
+      return res.status(400).json({ success: false, message: 'userId is required' });
+    }
+    const room = await gameService.closeRoom(roomCode, userId);
+    return res.status(200).json({ success: true, message: 'Room closed', data: room });
+  } catch (error) {
+    return res.status(error.status || 500).json({
+      success: false,
+      message: error.message || 'Close room failed'
+    });
+  }
+};
+
 module.exports = {
   createRoomController,
   joinRoomController,
@@ -166,5 +183,6 @@ module.exports = {
   makeMoveController,
   getSessionByRoomController,
   playAgainController,
-  listWaitingRoomsController
+  listWaitingRoomsController,
+  closeRoomController,
 };

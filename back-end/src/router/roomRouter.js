@@ -43,7 +43,8 @@ const {
   makeMoveController,
   getSessionByRoomController,
   playAgainController,
-  listWaitingRoomsController
+  listWaitingRoomsController,
+  closeRoomController,
 } = require('../controller/game.controller');
 
 const {
@@ -70,6 +71,9 @@ router.post('/:roomCode/start', startRoomController);
 
 // Play again in same room
 router.post('/:roomCode/play-again', playAgainController);
+
+// Close room (host only)
+router.post('/:roomCode/close', closeRoomController);
 
 // Make move
 router.post('/move', makeMoveController);

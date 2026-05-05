@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { createGame, joinRoom, startRoom, playAgain } from '../services/roomService';
+import { createGame, joinRoom, startRoom, playAgain, closeRoom } from '../services/roomService';
 import { MARKERS } from '../constants/gameOptions';
 
 function extractRoomCode(value) {
@@ -26,6 +26,7 @@ export default function useRoomActions({
   const [joining, setJoining] = useState(false);
   const [starting, setStarting] = useState(false);
   const [replaying, setReplaying] = useState(false);
+  const [closing, setClosing] = useState(false);
   const [error, setError] = useState('');
   const [infoMessage, setInfoMessage] = useState('');
   const [resultData, setResultData] = useState(null);
@@ -46,8 +47,8 @@ export default function useRoomActions({
   const handlePlay = async (e) => {
     e?.preventDefault();
 
-    if (gameMode === 'ONLINE' && !currentUserId) {
-      setError('You have to login first to play online.');
+    if ((gameMode === 'ONLINE' || gameMode === 'LOCAL') && !currentUserId) {
+      setError('You have to login first to play this mode.');
       if (onRequireLogin) onRequireLogin();
       return;
     }
@@ -252,8 +253,22 @@ export default function useRoomActions({
     setInfoMessage('Game finished. You can play again.');
   };
 
+  const handleCloseRoom = async (roomCode) => {
+    if (!roomCode || !currentUserId) return;
+    try {
+      setClosing(true);
+      setError('');
+      await closeRoom({ roomCode, userId: currentUserId });
+      resetToCreateGame();
+    } catch (err) {
+      setError(err.message || 'Close room failed');
+    } finally {
+      setClosing(false);
+    }
+  };
+
   return {
-    loading, joining, starting, replaying,
+    loading, joining, starting, replaying, closing,
     error, setError,
     infoMessage, setInfoMessage,
     resultData, setResultData,
@@ -264,6 +279,7 @@ export default function useRoomActions({
     handleJoinRoom,
     handleStartRoom,
     handlePlayAgain,
+    handleCloseRoom,
     resetToCreateGame,
     backToRoomLobby,
     getStarterMarker,

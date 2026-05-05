@@ -802,11 +802,12 @@ const joinRoom = async ({ userId, roomCode, marker }) => {
 
   await roomRepo.save(room);
 
-  emitRoomUpdated(roomCode, room);
+  const populatedRoom = await roomRepo.findByRoomCodeWithPlayers(roomCode);
+  emitRoomUpdated(roomCode, populatedRoom.toObject());
 
   return {
     message: 'Joined room successfully',
-    data: room,
+    data: populatedRoom,
   };
 };
 
@@ -857,14 +858,16 @@ const startRoom = async ({ userId, roomCode, starterMarker }) => {
 
   await roomRepo.save(room);
 
-  emitRoomStarted(roomCode, { room, session });
+  const populatedRoomAfterStart = await roomRepo.findByRoomCodeWithPlayers(roomCode);
+  const populatedRoomObj = populatedRoomAfterStart.toObject();
+  emitRoomStarted(roomCode, { room: populatedRoomObj, session });
   emitSessionUpdated(roomCode, session);
-  emitRoomUpdated(roomCode, room);
+  emitRoomUpdated(roomCode, populatedRoomObj);
 
   return {
     message: 'Game started',
     data: {
-      room,
+      room: populatedRoomObj,
       session
     }
   };
@@ -937,7 +940,8 @@ const makeMove = async ({ sessionId, row, col, marker }) => {
         room.status = 'FINISHED';
         room.replayRequests = [];
         await roomRepo.save(room);
-        emitRoomUpdated(room.roomCode, room);
+        const populatedRoomOnEnd = await roomRepo.findByRoomCodeWithPlayers(room.roomCode);
+        emitRoomUpdated(room.roomCode, populatedRoomOnEnd.toObject());
       }
 
       emitSessionUpdated(room.roomCode, session);
@@ -1047,12 +1051,13 @@ const playAgain = async ({ userId, roomCode }) => {
   const uniqueReplayRequestIds = [...new Set(room.replayRequests.map(String))];
 
   if (uniqueReplayRequestIds.length < 2) {
-    emitRoomUpdated(room.roomCode, room);
+    const populatedRoomWaiting = await roomRepo.findByRoomCodeWithPlayers(room.roomCode);
+    emitRoomUpdated(room.roomCode, populatedRoomWaiting.toObject());
 
     return {
       message: 'Replay request recorded. Waiting for the other player.',
       data: {
-        room,
+        room: populatedRoomWaiting,
         waitingForOtherPlayer: true
       }
     };
@@ -1065,14 +1070,16 @@ const playAgain = async ({ userId, roomCode }) => {
   room.replayRequests = [];
   await roomRepo.save(room);
 
-  emitRoomStarted(room.roomCode, { room, session, replay: true });
+  const populatedRoomReplay = await roomRepo.findByRoomCodeWithPlayers(room.roomCode);
+  const populatedRoomReplayObj = populatedRoomReplay.toObject();
+  emitRoomStarted(room.roomCode, { room: populatedRoomReplayObj, session, replay: true });
   emitSessionUpdated(room.roomCode, session);
-  emitRoomUpdated(room.roomCode, room);
+  emitRoomUpdated(room.roomCode, populatedRoomReplayObj);
 
   return {
     message: 'New session created successfully',
     data: {
-      room,
+      room: populatedRoomReplayObj,
       session,
       waitingForOtherPlayer: false
     }
@@ -1128,6 +1135,31 @@ const cleanupStaleDuelingRooms = async () => {
   return { closedDuelingRooms: count };
 };
 
+const closeRoom = async (roomCode, userId) => {
+  const room = await roomRepo.findByRoomCode(roomCode);
+
+  if (!room) {
+    throw buildError('Room not found', 404);
+  }
+
+  if (String(room.hostId) !== String(userId)) {
+    throw buildError('Only host can close the room', 403);
+  }
+
+  if (room.status === 'PLAYING') {
+    throw buildError('Cannot close room while game is in progress. Surrender first.', 400);
+  }
+
+  room.status = 'CLOSED';
+  room.closedAt = new Date();
+  await roomRepo.save(room);
+
+  const io = getIO();
+  io.to(roomCode).emit('room_closed', { roomCode, message: 'Host has closed the room.' });
+
+  return room;
+};
+
 module.exports = {
   createRoom,
   joinRoom,
@@ -1136,6 +1168,7 @@ module.exports = {
   getRoom,
   getSessionByRoom,
   playAgain,
+  closeRoom,
   listWaitingRooms,
   listArenaRooms,
   cleanupExpiredWaitingRooms,

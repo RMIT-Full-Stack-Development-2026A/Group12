@@ -25,12 +25,12 @@ function buildGameTypeMatch(gameType) {
 
   const normalized = String(gameType).toLowerCase();
   const mapping = {
-    single_player: ['single_player', 'SINGLE'],
-    two_player: ['two_player', 'LOCAL'],
-    online: ['online', 'ONLINE']
+    single_player: 'SINGLE',
+    two_player: 'LOCAL',
+    online: 'ONLINE'
   };
 
-  return mapping[normalized] ? { $in: mapping[normalized] } : gameType;
+  return mapping[normalized] ?? gameType;
 }
 
 function buildDateRange(query) {

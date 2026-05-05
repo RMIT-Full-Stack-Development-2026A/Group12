@@ -184,7 +184,7 @@ const GameSessionSchema = new mongoose.Schema({
 
   winner: {
     type: String,
-    enum: [...ALLOWED_MARKERS, null],
+    enum: ALLOWED_MARKERS,
     default: null
   },
 
@@ -207,5 +207,7 @@ const GameSessionSchema = new mongoose.Schema({
 
 GameSessionSchema.index({ roomId: 1, sessionNumber: -1 });
 GameSessionSchema.index({ roomId: 1, createdAt: -1 });
+GameSessionSchema.index({ player1Id: 1, startTime: -1 });
+GameSessionSchema.index({ player2Id: 1, startTime: -1 });
 
 module.exports = mongoose.model('GameSession', GameSessionSchema);

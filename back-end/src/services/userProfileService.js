@@ -292,11 +292,7 @@ function computeResult(session, currentUserId) {
   }
 
   if (status === 'finished') {
-    if (!session.winnerId) {
-      return 'draw';
-    }
-
-    return toObjectIdString(session.winnerId) === currentUserId ? 'win' : 'lose';
+    return null;
   }
 
   return null;

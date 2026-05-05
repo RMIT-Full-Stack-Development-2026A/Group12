@@ -8,8 +8,6 @@ const BOARD_STYLE_THEMES = {
   3: { surface: '#fff7ed', border: '#f97316', accent: '#c2410c', soft: '#ffedd5' },
 };
 
-const BOARD_STYLE_LABELS = { 1: 'Classic', 2: 'Aurora', 3: 'Contrast' };
-
 const BOT_NAME_BY_LEVEL = { easy: 'Easy Bot', medium: 'Medium Bot', hard: 'Hard Bot' };
 
 function getStyleId(value) {
@@ -83,34 +81,40 @@ function GameBoard({
   const players = useMemo(() => {
     if (roomData?.players?.length) {
       return roomData.players.map((player, index) => {
-        const user = typeof player.userId === 'object' ? player.userId : null;
+        const u = player.userId;
+        const isPopulated = u && typeof u === 'object' && u.username;
+        const isCurrentUser = String(u?._id || u) === String(currentUser?._id);
+        const resolvedUsername = isPopulated
+          ? u.username
+          : (isCurrentUser ? currentUser?.username : null) || `Player ${index + 1}`;
+        const resolvedAvatar = isPopulated
+          ? toAssetUrl(u.avatarUrl || '')
+          : (isCurrentUser ? toAssetUrl(currentUser?.avatarUrl || '') : '');
         return {
           label: `Player ${index + 1}`,
-          username: user?.username || `Player ${index + 1}`,
-          avatarUrl: toAssetUrl(user?.avatarUrl || ''),
+          username: resolvedUsername,
+          avatarUrl: resolvedAvatar,
           marker: player.mark,
-          styleId: currentStyleId,
-          styleLabel: BOARD_STYLE_LABELS[currentStyleId],
         };
       });
     }
 
     if (gameMode === 'LOCAL') {
       return [
-        { label: 'Player 1', username, avatarUrl: toAssetUrl(currentUser?.avatarUrl || ''), marker: player1Marker, styleId: currentStyleId, styleLabel: BOARD_STYLE_LABELS[currentStyleId] },
-        { label: 'Player 2', username: player2Name, avatarUrl: '', marker: player2Marker || 'O', styleId: currentStyleId, styleLabel: BOARD_STYLE_LABELS[currentStyleId] },
+        { label: 'Player 1', username, avatarUrl: toAssetUrl(currentUser?.avatarUrl || ''), marker: player1Marker },
+        { label: 'Player 2', username: player2Name, avatarUrl: '', marker: player2Marker || 'O' },
       ];
     }
 
     if (gameMode === 'SINGLE') {
       return [
-        { label: 'Player 1', username: 'Player 1', avatarUrl: toAssetUrl(currentUser?.avatarUrl || ''), marker: player1Marker, styleId: currentStyleId, styleLabel: BOARD_STYLE_LABELS[currentStyleId] },
-        { label: 'Bot', username: BOT_NAME_BY_LEVEL[aiLevel] || 'Bot', avatarUrl: '', marker: player2Marker || 'O', styleId: currentStyleId, styleLabel: BOARD_STYLE_LABELS[currentStyleId] },
+        { label: 'You', username, avatarUrl: toAssetUrl(currentUser?.avatarUrl || ''), marker: player1Marker },
+        { label: 'Bot', username: BOT_NAME_BY_LEVEL[aiLevel] || 'Bot', avatarUrl: '', marker: player2Marker || 'O' },
       ];
     }
 
-    return [{ label: 'Player', username, avatarUrl: toAssetUrl(currentUser?.avatarUrl || ''), marker, styleId: currentStyleId, styleLabel: BOARD_STYLE_LABELS[currentStyleId] }];
-  }, [roomData, gameMode, username, marker, player1Marker, player2Marker, currentStyleId, aiLevel, player2Name, currentUser]);
+    return [{ label: 'Player', username, avatarUrl: toAssetUrl(currentUser?.avatarUrl || ''), marker }];
+  }, [roomData, gameMode, username, marker, player1Marker, player2Marker, aiLevel, player2Name, currentUser]);
 
   const playerNameByMarker = useMemo(() => {
     return players.reduce((map, player) => {
@@ -218,29 +222,51 @@ function GameBoard({
       </div>
 
       <div style={styles.playersBox}>
+        {/* Left side avatar (Player 1) */}
+        <div style={styles.sideAvatar}>
+          {players[0]?.avatarUrl ? (
+            <img
+              src={players[0].avatarUrl}
+              alt={players[0].username}
+              style={styles.sideAvatarImg}
+              onError={(e) => { e.target.style.display = 'none'; }}
+            />
+          ) : (
+            <span style={{ fontSize: 36 }}>👤</span>
+          )}
+          <span style={styles.sideAvatarName}>{players[0]?.username || 'Player 1'}</span>
+        </div>
+
+        {/* Player cards */}
         {players.map((player) => (
           <div
             key={`${player.label}-${player.marker}`}
             style={{
               ...styles.playerCard,
-              borderColor: getStyleTheme(player.styleId).border,
-              background: getStyleTheme(player.styleId).surface,
+              borderColor: currentTheme.border,
+              background: currentTheme.surface,
             }}
           >
-            {player.avatarUrl ? (
-              <img
-                src={player.avatarUrl}
-                alt={player.username}
-                style={styles.playerAvatar}
-                onError={(e) => { e.target.style.display = 'none'; }}
-              />
-            ) : null}
             <p><strong>{player.label}</strong></p>
-            <p>{player.username}</p>
-            <p>Marker: {player.marker}</p>
-            <p>Style: {player.styleLabel}</p>
+            <p style={{ fontSize: 13, color: '#555' }}>{player.username}</p>
+            <p style={{ fontSize: 13 }}>Marker: <strong>{player.marker}</strong></p>
           </div>
         ))}
+
+        {/* Right side avatar (Player 2) */}
+        <div style={styles.sideAvatar}>
+          {players[1]?.avatarUrl ? (
+            <img
+              src={players[1].avatarUrl}
+              alt={players[1].username}
+              style={styles.sideAvatarImg}
+              onError={(e) => { e.target.style.display = 'none'; }}
+            />
+          ) : (
+            <span style={{ fontSize: 36 }}>👤</span>
+          )}
+          <span style={styles.sideAvatarName}>{players[1]?.username || 'Player 2'}</span>
+        </div>
       </div>
 
       {error ? <p style={styles.error}>{error}</p> : null}
@@ -348,17 +374,19 @@ const styles = {
   playersBox: {
     display: 'flex',
     justifyContent: 'center',
+    alignItems: 'center',
     gap: 12,
-    flexWrap: 'wrap',
+    flexWrap: 'nowrap',
     marginBottom: 20,
   },
   playerCard: {
-    minWidth: 140,
+    minWidth: 120,
     border: '1px solid #ccc',
     borderRadius: 8,
-    padding: 12,
+    padding: '10px 14px',
     fontSize: 14,
     lineHeight: 1.45,
+    textAlign: 'center',
   },
   playerAvatar: {
     width: 44,
@@ -368,6 +396,29 @@ const styles = {
     display: 'block',
     margin: '0 auto 6px',
     border: '2px solid #ccc',
+  },
+  sideAvatar: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: 6,
+    minWidth: 80,
+  },
+  sideAvatarImg: {
+    width: 72,
+    height: 72,
+    borderRadius: '50%',
+    objectFit: 'cover',
+    border: '3px solid #ccc',
+  },
+  sideAvatarName: {
+    fontSize: 12,
+    color: '#555',
+    maxWidth: 80,
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+    textAlign: 'center',
   },
   error: { color: 'red', marginBottom: 16 },
   grid: { display: 'grid', gap: '4px', justifyContent: 'center', marginTop: '20px' },

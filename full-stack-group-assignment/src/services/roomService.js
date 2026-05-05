@@ -51,3 +51,8 @@ export const getRoom = async (roomCode) => {
   const res = await apiClient.get(`${ROOMS}/${roomCode}`);
   return res.data;
 };
+
+export const closeRoom = async ({ roomCode, userId }) => {
+  const res = await apiClient.post(`${ROOMS}/${roomCode}/close`, { userId });
+  return res.data;
+};

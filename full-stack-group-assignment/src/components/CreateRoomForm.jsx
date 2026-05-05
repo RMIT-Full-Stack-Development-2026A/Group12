@@ -26,7 +26,7 @@ function CreateRoomForm({ currentUser, onRequireLogin, initialJoinCode, onInitia
   } = useGameDraft();
 
   const {
-    loading, joining, starting, replaying,
+    loading, joining, starting, replaying, closing,
     error, setError,
     infoMessage, setInfoMessage,
     resultData, setResultData,
@@ -37,6 +37,7 @@ function CreateRoomForm({ currentUser, onRequireLogin, initialJoinCode, onInitia
     handleJoinRoom,
     handleStartRoom,
     handlePlayAgain,
+    handleCloseRoom,
     resetToCreateGame,
     backToRoomLobby,
   } = useRoomActions({
@@ -84,6 +85,10 @@ function CreateRoomForm({ currentUser, onRequireLogin, initialJoinCode, onInitia
     setError,
     setInfoMessage,
     onFetchSession: getSessionByRoom,
+    onRoomClosed: (msg) => {
+      setInfoMessage(msg);
+      resetToCreateGame();
+    },
   });
 
   useEffect(() => {
@@ -210,16 +215,21 @@ function CreateRoomForm({ currentUser, onRequireLogin, initialJoinCode, onInitia
           hasTwoPlayers={hasTwoPlayers}
           joining={joining}
           starting={starting}
+          closing={closing}
           joinMarker={joinMarker}
           setJoinMarker={setJoinMarker}
           availableJoinMarkers={availableJoinMarkers}
           onJoinRoom={handleJoinRoom}
           onStartRoom={() => handleStartRoom(roomCode, isHost, onlineGuestMarker)}
+          onCloseRoom={() => handleCloseRoom(roomCode)}
           onCopyLink={handleCopyLink}
           onShare={handleShare}
+          currentUser={currentUser}
           currentUsername={currentUsername}
           currentUserId={currentUserId}
           onCopyUserId={handleCopyUserId}
+          selectedStyleId={selectedStyleId}
+          setSelectedStyleId={setSelectedStyleId}
           error={error}
           infoMessage={infoMessage}
           nextStarterRole={nextStarterRole}

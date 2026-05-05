@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import socket from '../socket';
 
 export default function useRoomSocket({
@@ -10,7 +10,10 @@ export default function useRoomSocket({
   setError,
   setInfoMessage,
   onFetchSession,
+  onRoomClosed,
 }) {
+  const onRoomClosedRef = useRef(onRoomClosed);
+  useEffect(() => { onRoomClosedRef.current = onRoomClosed; });
   // Host heartbeat: keep the waiting room alive while host is on the lobby page
   useEffect(() => {
     if (!roomCode || !isHost) return;
@@ -103,14 +106,20 @@ export default function useRoomSocket({
       }
     };
 
+    const handleRoomClosed = (data) => {
+      if (onRoomClosedRef.current) onRoomClosedRef.current(data?.message || 'Host has closed the room.');
+    };
+
     socket.on('room_updated', handleRoomUpdated);
     socket.on('room_started', handleRoomStarted);
     socket.on('session_updated', handleSessionUpdated);
+    socket.on('room_closed', handleRoomClosed);
 
     return () => {
       socket.off('room_updated', handleRoomUpdated);
       socket.off('room_started', handleRoomStarted);
       socket.off('session_updated', handleSessionUpdated);
+      socket.off('room_closed', handleRoomClosed);
       if (roomCode) {
         socket.emit('leave_room_channel', roomCode);
       } else {

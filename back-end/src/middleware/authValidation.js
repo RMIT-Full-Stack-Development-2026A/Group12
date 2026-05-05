@@ -1,6 +1,8 @@
 const { COUNTRY_LIST } = require('../constants/enums');
 
 const USERNAME_REGEX = /^[a-zA-Z0-9_-]+$/;
+// 1 @, domain có ít nhất 1 dấu chấm, không có space, dưới 255 ký tự
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function isNonEmpty(value) {
   return typeof value === 'string' ? value.trim().length > 0 : Boolean(value);
@@ -18,6 +20,13 @@ function validateRegister(req, res, next) {
   if (!USERNAME_REGEX.test(String(username).trim())) {
     return res.status(400).json({
       message: 'username can contain only letters, numbers, underscore, and hyphen'
+    });
+  }
+
+  const normalizedEmail = String(email).trim();
+  if (normalizedEmail.length > 254 || !EMAIL_REGEX.test(normalizedEmail)) {
+    return res.status(400).json({
+      message: 'email must be a valid format (e.g. user@example.com), no spaces, under 255 characters'
     });
   }
 

@@ -1,3 +1,68 @@
+import { toAssetUrl } from '../../utils/gameUtils';
+
+const BOARD_STYLE_OPTIONS = [
+  { value: '1', label: 'Classic' },
+  { value: '2', label: 'Aurora' },
+  { value: '3', label: 'Contrast' },
+];
+
+function PlayerAvatar({ avatarUrl, username, align = 'left' }) {
+  const size = 56;
+  return (
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      gap: 4,
+      minWidth: 70,
+    }}>
+      <div style={{
+        width: size,
+        height: size,
+        borderRadius: '50%',
+        overflow: 'hidden',
+        background: '#ddd',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        border: '2px solid #aaa',
+        flexShrink: 0,
+      }}>
+        {avatarUrl ? (
+          <img
+            src={avatarUrl}
+            alt={username}
+            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            onError={(e) => { e.target.style.display = 'none'; }}
+          />
+        ) : (
+          <span style={{ fontSize: 28 }}>👤</span>
+        )}
+      </div>
+      <span style={{
+        fontSize: 12,
+        maxWidth: 70,
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap',
+        textAlign: 'center',
+        color: '#555',
+      }}>
+        {username || (align === 'left' ? 'Player 1' : 'Player 2')}
+      </span>
+    </div>
+  );
+}
+
+function resolvePlayerInfo(playerEntry, fallbackUser) {
+  const u = playerEntry?.userId;
+  const isPopulated = u && typeof u === 'object' && u.username;
+  return {
+    username: isPopulated ? u.username : (fallbackUser?.username || null),
+    avatarUrl: isPopulated ? toAssetUrl(u.avatarUrl || '') : toAssetUrl(fallbackUser?.avatarUrl || ''),
+  };
+}
+
 function OnlineRoomLobby({
   roomData,
   sessionData,
@@ -8,33 +73,57 @@ function OnlineRoomLobby({
   hasTwoPlayers,
   joining,
   starting,
+  closing,
   joinMarker,
   setJoinMarker,
   availableJoinMarkers,
   onJoinRoom,
   onStartRoom,
+  onCloseRoom,
   onCopyLink,
   onShare,
+  currentUser,
   currentUsername,
   currentUserId,
   onCopyUserId,
+  selectedStyleId,
+  setSelectedStyleId,
   error,
   infoMessage,
   nextStarterRole,
   setNextStarterRole,
   styles,
 }) {
+  const hostEntry = roomData?.players?.[0];
+  const guestEntry = roomData?.players?.[1];
+
+  const hostInfo = resolvePlayerInfo(hostEntry, isHost ? currentUser : null);
+  const guestInfo = resolvePlayerInfo(guestEntry, !isHost ? currentUser : null);
+
   return (
     <div style={styles.card}>
-      <div style={styles.playerHeader}>
-        <div style={styles.playerBox}>
-          <span style={styles.playerIcon}>👤</span>
-          <span>Player 1</span>
+      {/* Player header with real avatars */}
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: '12px 16px',
+        borderBottom: '1px solid #eee',
+        marginBottom: 12,
+      }}>
+        <PlayerAvatar
+          avatarUrl={hostInfo.avatarUrl}
+          username={hostInfo.username}
+          align="left"
+        />
+        <div style={{ fontSize: 13, color: '#888', fontStyle: 'italic' }}>
+          {hasTwoPlayers ? 'vs' : 'Waiting for Player 2...'}
         </div>
-        <div style={styles.playerBox}>
-          <span>{hasTwoPlayers ? 'Player 2 joined' : 'Player 2: Await'}</span>
-          <span style={styles.playerIcon}>👤</span>
-        </div>
+        <PlayerAvatar
+          avatarUrl={hasTwoPlayers ? guestInfo.avatarUrl : ''}
+          username={hasTwoPlayers ? guestInfo.username : null}
+          align="right"
+        />
       </div>
 
       <div style={styles.resultBox}>
@@ -67,6 +156,22 @@ function OnlineRoomLobby({
         <p><strong>Session ID:</strong> {sessionData?._id || 'N/A'}</p>
         <p><strong>Role:</strong> {isHost ? 'Host' : 'Guest'}</p>
       </div>
+
+      {/* Board style selector */}
+      {setSelectedStyleId && (
+        <div style={styles.row}>
+          <div style={styles.labelBox}>Board style :</div>
+          <select
+            value={selectedStyleId || '1'}
+            onChange={(e) => setSelectedStyleId(e.target.value)}
+            style={styles.select}
+          >
+            {BOARD_STYLE_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {!hasTwoPlayers && (
         <div style={styles.resultBox}>
@@ -134,6 +239,28 @@ function OnlineRoomLobby({
         </button>
       ) : (
         <p style={styles.waitingText}>Waiting for host to start</p>
+      )}
+
+      {/* Close Room button — host only, not when game is PLAYING */}
+      {isHost && roomData?.status !== 'PLAYING' && (
+        <button
+          type="button"
+          onClick={onCloseRoom}
+          disabled={closing}
+          style={{
+            marginTop: 12,
+            padding: '8px 20px',
+            background: '#fee2e2',
+            color: '#b91c1c',
+            border: '1px solid #fca5a5',
+            borderRadius: 6,
+            cursor: closing ? 'not-allowed' : 'pointer',
+            fontWeight: 600,
+            fontSize: 14,
+          }}
+        >
+          {closing ? 'Closing...' : 'Close Room'}
+        </button>
       )}
     </div>
   );
