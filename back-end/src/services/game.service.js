@@ -1100,17 +1100,7 @@ const listWaitingRooms = async () => {
 };
 
 const listArenaRooms = async () => {
-  const rooms = await roomRepo.findArenaRooms();
-  return rooms.map((room) => ({
-    roomCode: room.roomCode,
-    boardSize: room.boardSize,
-    hostMarker: room.hostMarker,
-    hostUsername: room.players?.[0]?.userId?.username || 'Unknown',
-    player2Username: room.players?.[1]?.userId?.username || null,
-    createdAt: room.createdAt,
-    roomType: room.status === 'PLAYING' ? 'DUELING' : 'WAITING',
-    status: room.status,
-  }));
+  return listWaitingRooms();
 };
 
 const cleanupExpiredWaitingRooms = async () => {
@@ -1133,6 +1123,22 @@ const cleanupStaleDuelingRooms = async () => {
     count += 1;
   }
   return { closedDuelingRooms: count };
+};
+
+const closeRoomOnAllDisconnected = async (roomCode) => {
+  const room = await roomRepo.findByRoomCode(roomCode);
+  if (!room || ['CLOSED', 'FINISHED'].includes(room.status)) return;
+
+  if (room.status === 'PLAYING' && room.currentSessionId) {
+    await sessionRepo.abortSession(room.currentSessionId);
+  }
+
+  room.status = 'CLOSED';
+  room.closedAt = new Date();
+  await roomRepo.save(room);
+
+  const io = getIO();
+  io.to(roomCode).emit('room_closed', { roomCode, message: 'All players have left the room.' });
 };
 
 const closeRoom = async (roomCode, userId) => {
@@ -1169,6 +1175,7 @@ module.exports = {
   getSessionByRoom,
   playAgain,
   closeRoom,
+  closeRoomOnAllDisconnected,
   listWaitingRooms,
   listArenaRooms,
   cleanupExpiredWaitingRooms,

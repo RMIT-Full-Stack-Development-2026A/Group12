@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { getArenaRooms } from '../services/roomService';
 
-function ArenaPage({ currentUser, onJoinRoom, onSpectateRoom, onRequireLogin }) {
+function ArenaPage({ currentUser, onJoinRoom, onRequireLogin }) {
   const [rooms, setRooms] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -43,13 +43,6 @@ function ArenaPage({ currentUser, onJoinRoom, onSpectateRoom, onRequireLogin }) 
     onJoinRoom(roomCode);
   }
 
-  function handleSpectate(roomCode) {
-    onSpectateRoom?.(roomCode);
-  }
-
-  const waitingRooms = rooms.filter((r) => r.roomType === 'WAITING');
-  const duelingRooms = rooms.filter((r) => r.roomType === 'DUELING');
-
   return (
     <div style={styles.page}>
       <div style={styles.card}>
@@ -65,80 +58,41 @@ function ArenaPage({ currentUser, onJoinRoom, onSpectateRoom, onRequireLogin }) 
         {loading ? (
           <p style={styles.note}>Loading rooms...</p>
         ) : (
-          <>
-            <section style={styles.section}>
-              <h3 style={styles.sectionTitle}>
-                <span style={styles.dot('#1a6b2e')} /> Waiting Rooms
-                <span style={styles.count}>{waitingRooms.length}</span>
-              </h3>
-              {waitingRooms.length === 0 ? (
-                <p style={styles.note}>No waiting rooms. Create one to get started!</p>
-              ) : (
-                <div style={styles.list}>
-                  {waitingRooms.map((room) => (
-                    <div key={room.roomCode} style={styles.roomCard}>
-                      <div style={styles.roomInfo}>
-                        <span style={styles.roomCode}>#{room.roomCode}</span>
-                        <span style={styles.roomDetail}>
-                          Host: <strong>{room.hostUsername}</strong>
-                        </span>
-                        <span style={styles.roomDetail}>
-                          Board: <strong>{room.boardSize}×{room.boardSize}</strong>
-                        </span>
-                        <span style={styles.roomDetail}>
-                          Marker: <strong>{room.hostMarker}</strong>
-                        </span>
-                      </div>
-                      <button
-                        type="button"
-                        style={styles.joinBtn}
-                        onClick={() => handleJoin(room.roomCode)}
-                      >
-                        Join
-                      </button>
+          <section style={styles.section}>
+            <h3 style={styles.sectionTitle}>
+              <span style={styles.dot('#1a6b2e')} /> Waiting Rooms
+              <span style={styles.count}>{rooms.length}</span>
+            </h3>
+            {rooms.length === 0 ? (
+              <p style={styles.note}>No waiting rooms. Create one to get started!</p>
+            ) : (
+              <div style={styles.list}>
+                {rooms.map((room) => (
+                  <div key={room.roomCode} style={styles.roomCard}>
+                    <div style={styles.roomInfo}>
+                      <span style={styles.roomCode}>#{room.roomCode}</span>
+                      <span style={styles.roomDetail}>
+                        Host: <strong>{room.hostUsername}</strong>
+                      </span>
+                      <span style={styles.roomDetail}>
+                        Board: <strong>{room.boardSize}×{room.boardSize}</strong>
+                      </span>
+                      <span style={styles.roomDetail}>
+                        Marker: <strong>{room.hostMarker}</strong>
+                      </span>
                     </div>
-                  ))}
-                </div>
-              )}
-            </section>
-
-            <div style={styles.divider} />
-
-            <section style={styles.section}>
-              <h3 style={styles.sectionTitle}>
-                <span style={styles.dot('#c62828')} /> Dueling Rooms
-                <span style={styles.count}>{duelingRooms.length}</span>
-              </h3>
-              {duelingRooms.length === 0 ? (
-                <p style={styles.note}>No active duels at the moment.</p>
-              ) : (
-                <div style={styles.list}>
-                  {duelingRooms.map((room) => (
-                    <div key={room.roomCode} style={{ ...styles.roomCard, ...styles.duelingCard }}>
-                      <div style={styles.roomInfo}>
-                        <span style={{ ...styles.roomCode, color: '#c62828' }}>#{room.roomCode}</span>
-                        <span style={styles.roomDetail}>
-                          <strong>{room.hostUsername}</strong>
-                          <span style={styles.vsLabel}> vs </span>
-                          <strong>{room.player2Username || '?'}</strong>
-                        </span>
-                        <span style={styles.roomDetail}>
-                          Board: <strong>{room.boardSize}×{room.boardSize}</strong>
-                        </span>
-                      </div>
-                      <button
-                        type="button"
-                        style={styles.spectateBtn}
-                        onClick={() => handleSpectate(room.roomCode)}
-                      >
-                        Spectate
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </section>
-          </>
+                    <button
+                      type="button"
+                      style={styles.joinBtn}
+                      onClick={() => handleJoin(room.roomCode)}
+                    >
+                      Join
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
         )}
       </div>
     </div>
@@ -202,7 +156,6 @@ const styles = {
     fontWeight: 400,
     color: '#444',
   },
-  divider: { height: 1, background: '#d0d0d0' },
   list: { display: 'grid', gap: 8 },
   roomCard: {
     border: '1px solid #bcbcbc',
@@ -213,10 +166,6 @@ const styles = {
     justifyContent: 'space-between',
     alignItems: 'center',
     gap: 12,
-  },
-  duelingCard: {
-    borderColor: '#f5a0a0',
-    background: '#fffafa',
   },
   roomInfo: {
     display: 'flex',
@@ -233,7 +182,6 @@ const styles = {
     color: '#333',
   },
   roomDetail: { fontSize: 14, color: '#555' },
-  vsLabel: { color: '#c62828', fontWeight: 700 },
   joinBtn: {
     border: '2px solid #1a6b2e',
     borderRadius: 6,
@@ -242,17 +190,6 @@ const styles = {
     cursor: 'pointer',
     fontWeight: 700,
     color: '#1a6b2e',
-    whiteSpace: 'nowrap',
-    flexShrink: 0,
-  },
-  spectateBtn: {
-    border: '2px solid #b45309',
-    borderRadius: 6,
-    background: '#fff8e1',
-    padding: '6px 14px',
-    cursor: 'pointer',
-    fontWeight: 700,
-    color: '#b45309',
     whiteSpace: 'nowrap',
     flexShrink: 0,
   },
