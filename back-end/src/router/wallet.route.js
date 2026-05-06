@@ -1,5 +1,5 @@
 const express = require('express');
-const { deposit, getWallet } = require('./wallet.controller');
+const { deposit, getWallet } = require('../../controller/wallet.controller');
 const { authenticateJWT } = require('../../middleware/jwtAuth');
 
 const router = express.Router();

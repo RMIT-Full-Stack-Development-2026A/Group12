@@ -1,5 +1,5 @@
 const cron = require('node-cron');
-const Payment = require('./payment.model');
+const Payment = require('../models/payment.model');
 
 function startPaymentCleanupJob() {
   // run every minute

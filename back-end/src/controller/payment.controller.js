@@ -1,5 +1,5 @@
-const paymentService = require('./payment.service');
-const paymentRepo = require('./payment.repository');
+const paymentService = require('../services/payment.service');
+const paymentRepo = require('../repositories/payment.repository');
 
 async function createVNPay(req, res) {
   const { amount } = req.body;

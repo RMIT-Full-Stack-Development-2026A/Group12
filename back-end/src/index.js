@@ -14,8 +14,8 @@ const { initSocket } = require('./socket');
 const walletRoutes = require('./modules/wallet/wallet.route');
 const subRoutes = require('./modules/subscription/subscription.route');
 const { startSubscriptionJob } = require('./modules/subscription/subscription.cron');
-const paymentRoutes = require('./modules/payment/payment.route');
-const { startPaymentCleanupJob } = require('./modules/payment/payment.cron');
+const paymentRoutes = require('./router/payment.route');
+const { startPaymentCleanupJob } = require('./cron/payment.cron');
 
 const app = express();
 const PORT = process.env.PORT || 5000;

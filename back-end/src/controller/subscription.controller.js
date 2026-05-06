@@ -1,4 +1,4 @@
-const subService = require('./subscription.service');
+const subService = require('../services/subscription.service');
 
 async function subscribeWallet(req, res) {
   try {

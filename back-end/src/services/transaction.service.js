@@ -1,6 +1,6 @@
-const Transaction = require('../../models/transaction');
+const Transaction = require('../models/transaction');
 
-// 💰 Deposit (VNPay → Wallet)
+// Deposit (VNPay → Wallet)
 async function createDepositTransaction({ userId, walletId, paymentId, amount }) {
   return Transaction.create({
     userId,
@@ -12,7 +12,7 @@ async function createDepositTransaction({ userId, walletId, paymentId, amount })
   });
 }
 
-// 💎 Subscription via QR
+// Subscription via QR
 async function createQRSubscriptionTransaction({ userId, walletId, paymentId, amount }) {
   return Transaction.create({
     userId,
@@ -24,7 +24,7 @@ async function createQRSubscriptionTransaction({ userId, walletId, paymentId, am
   });
 }
 
-// 💳 Subscription via Wallet
+// Subscription via Wallet
 async function createWalletSubscriptionTransaction({ userId, walletId, amount }) {
   return Transaction.create({
     userId,

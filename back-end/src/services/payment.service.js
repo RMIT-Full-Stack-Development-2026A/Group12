@@ -1,11 +1,11 @@
 const { v4: uuidv4 } = require('uuid');
-const paymentRepo = require('./payment.repository');
-const Wallet = require('../../models/wallet');
-const Subscription = require('../../models/subscription');
-const User = require('../../models/user');
-const { sendSubscriptionEmail } = require('../../services/email.service');
-const Transaction = require('../../models/transaction');
-const transactionService = require('../transaction/transaction.service');
+const paymentRepo = require('../repositories/payment.repository');
+const Wallet = require('../models/wallet');
+const Subscription = require('../models/subscription');
+const User = require('../models/user');
+const { sendSubscriptionEmail } = require('./email.service');
+const Transaction = require('../models/transaction');
+const transactionService = require('./transaction.service');
 
 // ✅ CREATE PAYMENT (FAKE VNPAY)
 async function createVNPayPayment(userId, amount) {

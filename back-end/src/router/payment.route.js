@@ -5,9 +5,9 @@ const {
   getHistory,
   createSubscriptionPayment,
   getStatus
-} = require('./payment.controller');
+} = require('../controller/payment.controller');
 
-const { authenticateJWT } = require('../../middleware/jwtAuth');
+const { authenticateJWT } = require('../middleware/jwtAuth');
 
 const router = express.Router();
 

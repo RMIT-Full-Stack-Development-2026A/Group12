@@ -1,5 +1,5 @@
 const express = require('express');
-const { subscribeWallet, subscribeQR } = require('./subscription.controller');
+const { subscribeWallet, subscribeQR } = require('../../controller/subscription.controller');
 const { authenticateJWT } = require('../../middleware/jwtAuth');
 
 const router = express.Router();

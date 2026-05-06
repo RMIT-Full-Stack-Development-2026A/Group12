@@ -1,9 +1,9 @@
 const subRepo = require('./subscription.repository');
-const walletRepo = require('../wallet/wallet.repository');
-const User = require('../../models/user');
-const { sendSubscriptionEmail } = require('../../services/email.service');
-const Transaction = require('../../models/transaction');
-const transactionService = require('../transaction/transaction.service');
+const walletRepo = require('../modules/wallet/wallet.repository');
+const User = require('../models/user');
+const { sendSubscriptionEmail } = require('./email.service');
+const Transaction = require('../models/transaction');
+const transactionService = require('./transaction.service');
 
 const PRICE = 100000;
 
