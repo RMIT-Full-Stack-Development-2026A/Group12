@@ -36,11 +36,17 @@ const UserSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
-
-  preferences: {
-    boardSize: Number,
-    theme: String,
-    marker: String
+  isPremium: {
+    type: Boolean,
+    default: false
+  },
+  failedLogins: {
+    type: Number,
+    default: 0
+  },
+  lockUntil: {
+    type: Date,
+    default: null
   }
 
 }, { timestamps: true });

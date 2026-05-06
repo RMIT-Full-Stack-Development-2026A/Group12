@@ -101,3 +101,39 @@ code {
   padding: 4px 8px;
   background: var(--code-bg);
 }
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.3; }
+}
+
+@keyframes winnerPop {
+  0%   { transform: scale(0.8); opacity: 0; }
+  60%  { transform: scale(1.08); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* Responsive layout for ProfilePage */
+.profile-grid {
+  grid-template-columns: minmax(240px, 1fr) minmax(0, 3fr);
+}
+
+@media (max-width: 700px) {
+  .profile-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .filter-grid {
+    grid-template-columns: 1fr 1fr !important;
+  }
+  .profile-table th,
+  .profile-table td {
+    font-size: 12px;
+    padding: 6px;
+  }
+}
+
+@media (max-width: 480px) {
+  .filter-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
