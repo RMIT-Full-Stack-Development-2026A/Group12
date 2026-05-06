@@ -2,7 +2,9 @@ const roomRepo = require('./repositories/gameRoom.repository');
 
 let ioInstance = null;
 
-function initSocket(io) {
+const ROOM_CODE_RE = /^[A-Z2-9]{6}$/;
+
+function initSocket(io, { onAllDisconnected } = {}) {
   ioInstance = io;
 
   io.on('connection', (socket) => {
@@ -33,6 +35,19 @@ function initSocket(io) {
       try {
         await roomRepo.updateHostLastSeen(roomCode);
       } catch (e) { /* ignore */ }
+    });
+
+    socket.on('disconnecting', () => {
+      if (!onAllDisconnected) return;
+      const roomCodes = [...socket.rooms].filter((r) => ROOM_CODE_RE.test(r));
+      roomCodes.forEach(async (roomCode) => {
+        const roomSize = io.sockets.adapter.rooms.get(roomCode)?.size || 0;
+        if (roomSize - 1 === 0) {
+          try {
+            await onAllDisconnected(roomCode);
+          } catch (e) { /* ignore */ }
+        }
+      });
     });
 
     socket.on('disconnect', () => {
