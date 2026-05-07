@@ -48,7 +48,7 @@ function startServer() {
     }
   });
 
-  initSocket(io);
+  initSocket(io, { onAllDisconnected: gameService.closeRoomOnAllDisconnected });
 
   server.listen(PORT, () => {
     console.log(`Server started on port ${PORT}`);

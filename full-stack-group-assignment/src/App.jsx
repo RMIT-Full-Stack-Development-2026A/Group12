@@ -1,14 +1,15 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState, useEffect } from 'react'
 import AuthForm from './design/AuthForm'
 import LoginRequiredPopup from './components/LoginRequiredPopup'
 import CreateRoomPage from './pages/CreateRoomPage'
 import HomePage from './pages/HomePage'
 import ProfilePage from './pages/ProfilePage'
+import ArenaPage from './pages/ArenaPage'
 import { API_ORIGIN, TOKEN_STORAGE_KEY } from './config/appConfig'
 import FakeVNPay from './pages/FakeVNPay'
-import { useEffect } from 'react';
 import QRPayment from './pages/QRPayment'
 import FakeBank from './pages/FakeBank'
+import { toAssetUrl } from './utils/gameUtils'
 
 const VIEWS = {
   HOME: 'home',
@@ -18,6 +19,7 @@ const VIEWS = {
   FAKE_VNPAY: 'fake_vnpay',
   QR: 'qr',
   FAKE_BANK: 'fake_bank',
+  ARENA: 'arena',
 }
 
 function App() {
@@ -27,6 +29,8 @@ function App() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
 
   const isAuthed = Boolean(currentUser)
+
+  const [arenaJoinCode, setArenaJoinCode] = useState('')
 
   const shellTitle = useMemo(() => {
     if (view === VIEWS.CREATE) return 'Create Room'
@@ -59,6 +63,21 @@ function App() {
   function goCreate() {
     requireAuth(() => setView(VIEWS.CREATE))
   }
+
+  function goArena() {
+    setView(VIEWS.ARENA)
+    setIsMenuOpen(false)
+  }
+
+  function handleJoinFromArena(roomCode) {
+    setArenaJoinCode(roomCode)
+    setView(VIEWS.CREATE)
+  }
+
+  const requireCreateLogin = useCallback(() => {
+    setView(VIEWS.CREATE)
+    setIsGateOpen(true)
+  }, [])
 
   const openAuth = useCallback(() => {
     setIsGateOpen(false)
@@ -172,7 +191,20 @@ function App() {
         ) : null}
 
         {view === VIEWS.CREATE ? (
-          <CreateRoomPage currentUser={currentUser} />
+          <CreateRoomPage
+            currentUser={currentUser}
+            onRequireLogin={requireCreateLogin}
+            initialJoinCode={arenaJoinCode}
+            onInitialJoinCodeConsumed={() => setArenaJoinCode('')}
+          />
+        ) : null}
+
+        {view === VIEWS.ARENA ? (
+          <ArenaPage
+            currentUser={currentUser}
+            onJoinRoom={handleJoinFromArena}
+            onRequireLogin={requireCreateLogin}
+          />
         ) : null}
 
         {view === VIEWS.PROFILE ? (

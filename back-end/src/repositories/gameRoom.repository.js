@@ -20,7 +20,7 @@ const findWaitingRooms = () => {
 };
 
 const findArenaRooms = () => {
-  return GameRoom.find({ status: { $in: ['WAITING', 'PLAYING'] } })
+  return GameRoom.find({ status: 'WAITING' })
     .populate('players.userId', 'username avatarUrl')
     .sort({ createdAt: -1 })
     .limit(50);
