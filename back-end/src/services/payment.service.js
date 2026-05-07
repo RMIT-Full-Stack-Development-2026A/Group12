@@ -72,12 +72,18 @@ async function handleVNPayReturn(query) {
     const endDate = new Date();
     endDate.setMonth(endDate.getMonth() + 1);
 
-    await Subscription.create({
-      userId: payment.userId,
+    await Subscription.findOneAndUpdate(
+    { userId },
+    {
       isPremium: true,
       startDate,
       endDate
-    });
+    },
+    {
+      upsert: true,
+      new: true
+    }
+    );
 
   const user = await User.findByIdAndUpdate(
     payment.userId,
