@@ -7,7 +7,7 @@ const { sendSubscriptionEmail } = require('./email.service');
 const Transaction = require('../models/transaction');
 const transactionService = require('./transaction.service');
 
-// ✅ CREATE PAYMENT (FAKE VNPAY)
+// CREATE PAYMENT (FAKE VNPAY)
 async function createVNPayPayment(userId, amount) {
   const orderId = uuidv4();
 
@@ -19,7 +19,7 @@ async function createVNPayPayment(userId, amount) {
     status: 'PENDING'
   });
 
-  // 👉 Return fake VNPay URL
+  // Return fake VNPay URL
   return `${process.env.BASE_URL}/fake-vnpay?orderId=${orderId}&amount=${amount}`;
 }
 
@@ -39,7 +39,7 @@ async function createSubscriptionPayment(userId) {
 }
 
 
-// ✅ HANDLE CALLBACK
+// HANDLE CALLBACK
 async function handleVNPayReturn(query) {
   const { vnp_TxnRef, vnp_ResponseCode, vnp_Amount, type } = query;
 
@@ -49,7 +49,7 @@ async function handleVNPayReturn(query) {
   if (vnp_ResponseCode === '00') {
     const amount = payment.amount;
 
-    // 💰 WALLET FLOW
+    // WALLET FLOW
     if (type === 'wallet') {
       const wallet = await Wallet.findOneAndUpdate(
         { userId: payment.userId },
@@ -57,7 +57,7 @@ async function handleVNPayReturn(query) {
         { upsert: true, new: true }
       );
 
-      // ✅ CREATE TRANSACTION
+      // CREATE TRANSACTION
     await transactionService.createDepositTransaction({
       userId: payment.userId,
       walletId: wallet._id,
@@ -66,7 +66,7 @@ async function handleVNPayReturn(query) {
     });
     }
 
-    // ✅ DIRECT SUBSCRIPTION (NO WALLET)
+    // DIRECT SUBSCRIPTION
     if (payment.method === 'QR') {
     const startDate = new Date();
     const endDate = new Date();
@@ -94,7 +94,7 @@ async function handleVNPayReturn(query) {
     amount: payment.amount
   });
 
-  // 📧 SEND EMAIL
+  // SEND EMAIL
   await sendSubscriptionEmail(user.email, endDate);
 }
 
@@ -108,7 +108,7 @@ async function handleVNPayReturn(query) {
 }
 
 
-// ✅ EXPORT (VERY IMPORTANT)
+// EXPORT
 module.exports = {
   createVNPayPayment,
   handleVNPayReturn,

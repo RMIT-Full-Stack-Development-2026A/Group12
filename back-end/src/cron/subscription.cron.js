@@ -21,7 +21,7 @@ function startSubscriptionJob() {
 
       const daysLeft = (sub.endDate - now) / (1000 * 60 * 60 * 24);
 
-      // 🔔 Reminder before expiry
+      // Reminder before expiry
       if (daysLeft <= 2 && daysLeft > 0) {
         await sendSubscriptionEmail(
           user.email,
@@ -29,7 +29,7 @@ function startSubscriptionJob() {
         );
       }
 
-      // 🔁 Auto renew
+      // Auto renew
       if (sub.endDate <= now) {
         const wallet = await Wallet.findOne({ userId: user._id });
 
@@ -50,7 +50,7 @@ function startSubscriptionJob() {
           );
 
         } else {
-          // ❌ Not enough money → downgrade
+          // Not enough money → downgrade
           user.isPremium = false;
           await user.save();
         }
