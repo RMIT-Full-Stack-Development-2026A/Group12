@@ -1,8 +1,8 @@
 const cron = require('node-cron');
-const Subscription = require('../../models/subscription');
-const Wallet = require('../../models/wallet');
-const User = require('../../models/user');
-const { sendSubscriptionEmail } = require('../../services/email.service');
+const Subscription = require('../models/subscription');
+const Wallet = require('../models/wallet');
+const User = require('../models/user');
+const { sendSubscriptionEmail } = require('../services/email.service');
 
 const PRICE = 10;
 

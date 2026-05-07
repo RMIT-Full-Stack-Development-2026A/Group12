@@ -1,4 +1,4 @@
-const walletRepo = require('./wallet.repository');
+const walletRepo = require('../repositories/wallet.repository');
 
 async function deposit(userId, amount) {
   let wallet = await walletRepo.findByUserId(userId);

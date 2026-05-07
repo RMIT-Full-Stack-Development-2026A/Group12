@@ -1,5 +1,5 @@
-const subRepo = require('./subscription.repository');
-const walletRepo = require('../modules/wallet/wallet.repository');
+const subRepo = require('../repositories/subscription.repository');
+const walletRepo = require('../repositories/wallet.repository');
 const User = require('../models/user');
 const { sendSubscriptionEmail } = require('./email.service');
 const Transaction = require('../models/transaction');

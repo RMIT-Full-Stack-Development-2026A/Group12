@@ -5,7 +5,7 @@ const Subscription = require('../models/subscription');
 const User = require('../models/user');
 const { sendSubscriptionEmail } = require('./email.service');
 const Transaction = require('../models/transaction');
-const transactionService = require('./transaction.service');
+const transactionService = require('../services/transaction.service');
 
 // CREATE PAYMENT (FAKE VNPAY)
 async function createVNPayPayment(userId, amount) {

@@ -11,11 +11,12 @@ const authRouter = require('./router/authRouter');
 const userProfileRouter = require('./router/userProfileRouter');
 const roomRoutes = require('./router/roomRouter');
 const { initSocket } = require('./socket');
-const walletRoutes = require('./modules/wallet/wallet.route');
-const subRoutes = require('./modules/subscription/subscription.route');
-const { startSubscriptionJob } = require('./modules/subscription/subscription.cron');
+const walletRoutes = require('./router/wallet.route');
+const subRoutes = require('./router/subscription.route');
+const { startSubscriptionJob } = require('./cron/subscription.cron');
 const paymentRoutes = require('./router/payment.route');
 const { startPaymentCleanupJob } = require('./cron/payment.cron');
+const { game: gameService } = require('./services');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
