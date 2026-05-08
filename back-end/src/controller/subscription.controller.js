@@ -1,4 +1,5 @@
 const subService = require('../services/subscription.service');
+const Subscription = require('../models/subscription');
 
 async function subscribeWallet(req, res) {
   try {
@@ -14,7 +15,16 @@ async function subscribeQR(req, res) {
   res.json({ message: 'QR Payment success', result });
 }
 
+async function getMySubscription(req, res) {
+  const sub = await Subscription.findOne({
+    userId: req.auth.userId
+  });
+
+  res.json(sub);
+}
+
 module.exports = {
   subscribeWallet,
-  subscribeQR
+  subscribeQR,
+  getMySubscription
 };

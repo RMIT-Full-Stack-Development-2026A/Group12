@@ -5,19 +5,19 @@ function QRPayment() {
   const [amount, setAmount] = useState('');
   const [timeLeft, setTimeLeft] = useState(300);
 
-  // ✅ get params
+  // get params
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     setOrderId(params.get('orderId'));
     setAmount(params.get('amount'));
   }, []);
 
-  // ✅ generate QR
+  // generate QR
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(
     `${window.location.origin}/fake-bank?orderId=${orderId}&amount=${amount}`
   )}`;
 
-  // ✅ auto check payment
+  // auto check payment
   useEffect(() => {
     if (!orderId) return;
 
@@ -35,7 +35,7 @@ function QRPayment() {
     return () => clearInterval(interval);
   }, [orderId]);
 
-  // ✅ countdown timer
+  // countdown timer
   useEffect(() => {
     if (timeLeft <= 0) {
       alert('Payment expired');

@@ -1,5 +1,5 @@
-const subRepo = require('./subscription.repository');
-const walletRepo = require('../modules/wallet/wallet.repository');
+const subRepo = require('../repositories/subscription.repository');
+const walletRepo = require('../repositories/wallet.repository');
 const User = require('../models/user');
 const { sendSubscriptionEmail } = require('./email.service');
 const Transaction = require('../models/transaction');
@@ -30,13 +30,18 @@ async function subscribeWithWallet(userId) {
   const endDate = new Date();
   endDate.setMonth(endDate.getMonth() + 1);
 
-  await subRepo.createSubscription({
-    userId,
+  await Subscription.findOneAndUpdate(
+  { userId },
+  {
     isPremium: true,
     startDate,
     endDate
-  });
-
+  },
+  {
+    upsert: true,
+    new: true
+  }
+);
   await paymentRepo.createPayment({
     userId,
     amount: PRICE,
@@ -53,12 +58,11 @@ async function subscribeWithWallet(userId) {
   return { startDate, endDate };
 }
 
-async function subscribeQR(userId) {
-  // simulate QR payment success
-  return subscribeWithWallet(userId); // reuse logic
-}
+// async function subscribeQR(userId) {
+//   return subscribeWithWallet(userId); 
+// }
 
 module.exports = {
-  subscribeWithWallet,
-  subscribeQR
+  subscribeWithWallet
+  // subscribeQR
 };

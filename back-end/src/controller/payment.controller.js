@@ -28,7 +28,7 @@ async function createSubscriptionPayment(req, res) {
   res.json({ paymentUrl: url });
 }
 
-// 📊 Transaction history
+// Transaction history
 async function getHistory(req, res) {
   const history = await paymentRepo.getUserPayments(req.auth.userId);
   res.json(history);

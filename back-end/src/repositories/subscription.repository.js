@@ -1,4 +1,4 @@
-const Subscription = require('../../models/subscription');
+const Subscription = require('../models/subscription');
 
 async function createSubscription(data) {
   return Subscription.create(data);
