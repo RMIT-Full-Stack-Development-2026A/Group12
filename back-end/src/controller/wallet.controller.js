@@ -1,4 +1,4 @@
-const walletService = require('../modules/wallet/wallet.service');
+const walletService = require('../services/wallet.service');
 
 async function deposit(req, res) {
   try {
