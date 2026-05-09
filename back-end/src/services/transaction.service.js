@@ -8,7 +8,8 @@ async function createDepositTransaction({ userId, walletId, paymentId, amount })
     paymentId,
     amount,
     type: 'DEPOSIT',
-    method: 'VNPAY'
+    method: 'VNPAY',
+    description: 'Add funds to wallet via VNPay'
   });
 }
 
@@ -20,7 +21,8 @@ async function createQRSubscriptionTransaction({ userId, walletId, paymentId, am
     paymentId,
     amount,
     type: 'SUBSCRIPTION',
-    method: 'QR'
+    method: 'QR',
+    description: 'Subscribe via QR code payment'
   });
 }
 
@@ -31,7 +33,8 @@ async function createWalletSubscriptionTransaction({ userId, walletId, amount })
     walletId,
     amount,
     type: 'SUBSCRIPTION',
-    method: 'WALLET'
+    method: 'WALLET',
+    description: 'Subscribe using wallet balance'
   });
 }
 

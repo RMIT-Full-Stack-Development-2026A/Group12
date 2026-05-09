@@ -233,13 +233,6 @@ function App() {
   )
 }
 
-function toAssetUrl(path) {
-  if (!path) return ''
-  if (/^https?:\/\//i.test(path)) return path
-  if (API_ORIGIN) return `${API_ORIGIN}${path}`
-  return path
-}
-
 const styles = {
   shell: {
     width: 'min(1100px, 100%)',

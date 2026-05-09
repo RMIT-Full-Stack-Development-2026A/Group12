@@ -25,7 +25,13 @@ async function withdraw(userId, amount) {
 }
 
 async function getWallet(userId) {
-  return walletRepo.findByUserId(userId);
+  let wallet = await walletRepo.findByUserId(userId);
+
+  if (!wallet) {
+    wallet = await walletRepo.createWallet(userId);
+  }
+
+  return wallet;
 }
 
 module.exports = {

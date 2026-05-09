@@ -9,14 +9,21 @@ const transporter = nodemailer.createTransport({
 });
 
 async function sendSubscriptionEmail(to, endDate) {
-  await transporter.sendMail({
-    from: process.env.EMAIL_USER,
-    to,
-    subject: 'Subscription Activated',
-    text: `Your premium is active until ${endDate}`
-  });
+  try {
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to,
+      subject: 'Subscription Activated',
+      text: `Your premium is active until ${endDate}`
+    });
+
+    console.log('Email sent');
+  } catch (err) {
+    console.error('Email failed:', err.message);
+
+    // do NOT crash payment flow
+    return null;
+  }
 }
 
-module.exports = {
-  sendSubscriptionEmail
-};
+module.exports = { sendSubscriptionEmail };

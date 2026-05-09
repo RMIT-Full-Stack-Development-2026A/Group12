@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { API_ROOT_URL } from '../config/appConfig';
 
 function FakeBank() {
   const [orderId, setOrderId] = useState('');

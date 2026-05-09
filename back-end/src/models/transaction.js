@@ -22,6 +22,7 @@ const TransactionSchema = new mongoose.Schema({
     type: String,
     enum: ['VNPAY', 'QR', 'WALLET']
   },
+  description: String,
   createdAt: {
     type: Date,
     default: Date.now

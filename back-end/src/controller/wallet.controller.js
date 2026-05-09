@@ -21,6 +21,12 @@ async function deposit(req, res) {
 }
 
 async function withdraw(req, res) {
+  if (!amount || amount <= 0) {
+  return res.status(400).json({
+    message: 'Invalid amount'
+  });
+  }
+  
   try {
     const userId = req.auth.userId;
     const { amount } = req.body;

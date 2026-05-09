@@ -17,6 +17,7 @@ const { startSubscriptionJob } = require('./cron/subscription.cron');
 const paymentRoutes = require('./router/payment.route');
 const { startPaymentCleanupJob } = require('./cron/payment.cron');
 const { game: gameService } = require('./services');
+const transactionRoutes = require('./router/transaction.route');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -38,6 +39,7 @@ app.use('/api/rooms', roomRoutes);
 app.use('/api/wallet', walletRoutes);
 app.use('/api/subscription', subRoutes);
 app.use('/api/payment', paymentRoutes);
+app.use('/api/transaction', transactionRoutes);
 
 function startServer() {
   const server = http.createServer(app);

@@ -2,22 +2,44 @@ const paymentService = require('../services/payment.service');
 const paymentRepo = require('../repositories/payment.repository');
 
 async function createVNPay(req, res) {
-  const { amount } = req.body;
-  const userId = req.auth.userId;
+  try {
+    const amount = Number(req.body.amount);
+    const userId = req.auth.userId;
 
-  const url = await paymentService.createVNPayPayment(userId, amount);
+    if (!amount || amount <= 0) {
+      return res.status(400).json({
+        message: 'Amount must be greater than 0'
+      });
+    }
 
-  res.json({ paymentUrl: url });
+    const url = await paymentService.createVNPayPayment(
+      userId,
+      amount
+    );
+
+    res.json({ paymentUrl: url });
+
+  } catch (err) {
+    res.status(500).json({
+      message: err.message
+    });
+  }
 }
 
 async function vnpayReturn(req, res) {
   const result = await paymentService.handleVNPayReturn(req.query);
 
+  const FRONTEND = process.env.FRONTEND_URL || 'http://localhost:5173';
+
   if (result.success) {
-    return res.send("Payment success");
+    return res.redirect(
+      `${FRONTEND}/profile?payment=success`
+    );
   }
 
-  return res.send("Payment failed");
+  return res.redirect(
+    `${FRONTEND}/profile?payment=failed`
+  );
 }
 
 async function createSubscriptionPayment(req, res) {

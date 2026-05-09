@@ -15,6 +15,9 @@ const PaymentSchema = new mongoose.Schema({
     type: String,
     enum: ['PENDING', 'SUCCESS', 'FAILED'],
     default: 'PENDING'
+  },
+  paymentUrl: {
+    type: String
   }
 }, { timestamps: true });
 

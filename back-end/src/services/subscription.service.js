@@ -4,6 +4,7 @@ const User = require('../models/user');
 const { sendSubscriptionEmail } = require('./email.service');
 const Transaction = require('../models/transaction');
 const transactionService = require('./transaction.service');
+const paymentRepo = require('../repositories/payment.repository')
 
 const PRICE = 100000;
 

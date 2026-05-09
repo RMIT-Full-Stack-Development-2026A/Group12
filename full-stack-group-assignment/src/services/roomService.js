@@ -32,6 +32,10 @@ async function getJson(url) {
   return data
 }
 
+export const getArenaRooms = async () => {
+  return getJson(ROOMS_URL)
+}
+
 export const createGame = async ({
   userId,
   gameMode,
