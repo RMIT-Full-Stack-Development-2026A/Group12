@@ -4,7 +4,10 @@ const { ALLOWED_MARKERS } = require('../constants/enums');
 const roomRepo = require('../repositories/gameRoom.repository');
 const sessionRepo = require('../repositories/gameSession.repository');
 const { generateRoomCode } = require('../utils/roomCode');
+const TURN_TIMEOUT_MS = 60 * 1000; 
 
+
+const activeTurnTimers = new Map();
 const buildError = (message, status = 400) => {
   const err = new Error(message);
   err.status = status;
@@ -680,7 +683,7 @@ const createRoom = async ({ userId, gameMode, marker, boardSize, aiLevel, starte
       startTime: new Date(),
       endTime: null
     });
-
+    resetTurnTimer(session);
     if (session.currentTurn === session.player2Marker) {
       await applyBotMoveToSession(session);
     }
@@ -718,9 +721,9 @@ const createRoom = async ({ userId, gameMode, marker, boardSize, aiLevel, starte
       moves: [],
       result: null,
       startTime: new Date(),
-      endTime: null
+      endTime: null,
     });
-
+    resetTurnTimer(session);
     return {
       message: 'Local game created successfully',
       data: session
@@ -850,6 +853,7 @@ const startRoom = async ({ userId, roomCode, starterMarker }) => {
   const startStarterMarker = requestedStarterMarker || hostMarker;
   const session = await createOnlineSessionFromRoom(room, startStarterMarker);
 
+  resetTurnTimer(session);
   room.currentSessionId = session._id;
   room.currentTurn = startStarterMarker;
   room.status = 'PLAYING';
@@ -917,11 +921,13 @@ const makeMove = async ({ sessionId, row, col, marker }) => {
     session.result =
       marker === session.player1Marker ? 'PLAYER1_WIN' : 'PLAYER2_WIN';
     session.endTime = new Date();
+    clearTurnTimer(session);
   } else if (gameStatus.status === 'DRAW') {
     session.status = 'DRAW';
     session.winner = null;
     session.result = 'DRAW';
     session.endTime = new Date();
+    clearTurnTimer(session);
   } else {
     session.status = 'PLAYING';
     session.currentTurn =
@@ -932,6 +938,8 @@ const makeMove = async ({ sessionId, row, col, marker }) => {
 
   await sessionRepo.save(session);
 
+  resetTurnTimer(session);
+  
   if (session.roomId) {
     const room = await roomRepo.findById(session.roomId);
 
@@ -1065,6 +1073,7 @@ const playAgain = async ({ userId, roomCode }) => {
 
   const session = await createOnlineSessionFromRoom(room);
 
+  resetTurnTimer(session);
   room.currentSessionId = session._id;
   room.status = 'PLAYING';
   room.replayRequests = [];
@@ -1165,7 +1174,91 @@ const closeRoom = async (roomCode, userId) => {
 
   return room;
 };
+const handleTurnTimeout = async (sessionId) => {
+  try {
+    const session = await sessionRepo.findById(sessionId);
 
+    if (!session || session.status !== 'PLAYING') {
+      return;
+    }
+
+    const loserMarker = session.currentTurn;
+
+    const winnerMarker =
+      loserMarker === session.player1Marker
+        ? session.player2Marker
+        : session.player1Marker;
+
+    session.status = 'WIN';
+    session.winner = winnerMarker;
+
+    session.result =
+      winnerMarker === session.player1Marker
+        ? 'PLAYER1_WIN'
+        : 'PLAYER2_WIN';
+
+    session.endTime = new Date();
+
+    session.timeoutLose = loserMarker;
+
+    await sessionRepo.save(session);
+
+    if (session.roomId) {
+      const room = await roomRepo.findById(session.roomId);
+
+      if (room) {
+        room.status = 'FINISHED';
+        await roomRepo.save(room);
+
+        emitSessionUpdated(room.roomCode, session);
+
+        const populatedRoom = await roomRepo.findByRoomCodeWithPlayers(
+          room.roomCode
+        );
+
+        emitRoomUpdated(room.roomCode, populatedRoom.toObject());
+      }
+    } else {
+      emitSessionUpdatedById(String(session._id), session);
+    }
+
+    activeTurnTimers.delete(String(sessionId));
+  } catch (err) {
+    console.error('[TURN_TIMEOUT]', err);
+  }
+};
+
+const resetTurnTimer = (session) => {
+  const sessionId = String(session._id);
+
+  const oldTimer = activeTurnTimers.get(sessionId);
+
+  if (oldTimer) {
+    clearTimeout(oldTimer);
+  }
+
+  if (session.status !== 'PLAYING') {
+    activeTurnTimers.delete(sessionId);
+    return;
+  }
+
+  session.turnDeadlineAt = new Date(Date.now() + TURN_TIMEOUT_MS);
+
+  const timeout = setTimeout(() => {
+    handleTurnTimeout(sessionId);
+  }, TURN_TIMEOUT_MS);
+
+  activeTurnTimers.set(sessionId, timeout);
+};
+
+const clearTurnTimer = (sessionId) => {
+  const timer = activeTurnTimers.get(String(sessionId));
+
+  if (timer) {
+    clearTimeout(timer);
+    activeTurnTimers.delete(String(sessionId));
+  }
+};
 module.exports = {
   createRoom,
   joinRoom,

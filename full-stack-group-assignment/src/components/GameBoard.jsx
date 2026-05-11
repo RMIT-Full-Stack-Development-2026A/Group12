@@ -9,7 +9,6 @@ const BOARD_STYLE_THEMES = {
 };
 
 const BOT_NAME_BY_LEVEL = { easy: 'Easy Bot', medium: 'Medium Bot', hard: 'Hard Bot' };
-
 function getStyleId(value) {
   const n = Number(value);
   return [1, 2, 3].includes(n) ? n : 1;
@@ -38,11 +37,12 @@ function GameBoard({
   const [loadingCell, setLoadingCell] = useState(null);
   const [error, setError] = useState('');
   const [isAiThinking, setIsAiThinking] = useState(false);
+  const [secondsLeft, setSecondsLeft] = useState(60);
   const snapshotRef = useRef(null);
   const [sessionState, setSessionState] = useState(
     resultData?.data?.session || resultData?.data || null
   );
-
+  
   useEffect(() => {
     setSessionState(resultData?.data?.session || resultData?.data || null);
     setIsAiThinking(false);
@@ -56,7 +56,6 @@ function GameBoard({
     }, 10000);
     return () => clearTimeout(timeout);
   }, [isAiThinking]);
-
   const sessionId =
     sessionState?._id ||
     resultData?.data?.session?._id ||
@@ -77,6 +76,24 @@ function GameBoard({
   const isFinished = status === 'WIN' || status === 'DRAW' || status === 'FINISHED';
   const isLocalOrSingle = gameMode === 'LOCAL' || gameMode === 'SINGLE';
   const canAct = Boolean(currentTurn) && (!isLocalOrSingle ? currentTurn === marker : true);
+
+useEffect(() => {
+  if (isFinished) return;
+
+  setSecondsLeft(60);
+
+  const timer = setInterval(() => {
+    setSecondsLeft((prev) => {
+      if (prev <= 1) {
+        clearInterval(timer);
+        return 0;
+      }
+      return prev - 1;
+    });
+  }, 1000);
+
+  return () => clearInterval(timer);
+}, [currentTurn, isFinished]);
 
   const players = useMemo(() => {
     if (roomData?.players?.length) {
@@ -195,7 +212,18 @@ function GameBoard({
   return (
     <div style={{ ...styles.wrapper, background: currentTheme.soft }}>
       <h2 style={{ ...styles.title, color: currentTheme.accent }}>Game Board</h2>
-
+        {!isFinished && (
+    <div
+    style={{
+      fontSize: 18,
+      fontWeight: 700,
+      color: secondsLeft <= 10 ? '#dc2626' : currentTheme.accent,
+      marginBottom: 12,
+    }}
+  >
+    ⏳ {secondsLeft}s
+  </div>
+)}
       {readOnly ? (
         <div style={styles.spectatorBanner}>Spectating — view only</div>
       ) : null}
