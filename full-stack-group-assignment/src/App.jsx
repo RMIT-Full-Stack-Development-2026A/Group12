@@ -76,9 +76,9 @@ function App() {
     setView(VIEWS.AUTH)
   }, [])
 
-  function handleAuthSuccess(user) {
+  function handleAuthSuccess(user, options = {}) {
     setCurrentUser(user)
-    setView(VIEWS.CREATE)
+    setView(options.openCreate ? VIEWS.CREATE : VIEWS.HOME)
     setIsMenuOpen(false)
   }
 
@@ -180,6 +180,7 @@ function App() {
           <CreateRoomPage
             currentUser={currentUser}
             onRequireLogin={requireCreateLogin}
+            onExitToMenu={goHome}
             initialJoinCode={arenaJoinCode}
             onInitialJoinCodeConsumed={() => setArenaJoinCode('')}
           />

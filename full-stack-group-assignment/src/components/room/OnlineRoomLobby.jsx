@@ -71,12 +71,8 @@ function OnlineRoomLobby({
   marker,
   isHost,
   hasTwoPlayers,
-  joining,
   starting,
   closing,
-  joinMarker,
-  setJoinMarker,
-  availableJoinMarkers,
   onJoinRoom,
   onStartRoom,
   onCloseRoom,
@@ -92,6 +88,7 @@ function OnlineRoomLobby({
   infoMessage,
   nextStarterRole,
   setNextStarterRole,
+  isGameOver,
   styles,
 }) {
   const hostEntry = roomData?.players?.[0];
@@ -99,6 +96,9 @@ function OnlineRoomLobby({
 
   const hostInfo = resolvePlayerInfo(hostEntry, isHost ? currentUser : null);
   const guestInfo = resolvePlayerInfo(guestEntry, !isHost ? currentUser : null);
+  const currentPlayer = roomData?.players?.find((player) => String(player?.userId?._id || player?.userId) === String(currentUserId)) || null;
+  const currentMarkerLabel = currentPlayer?.displayMarker || marker;
+  const currentMarkerColor = currentPlayer?.markerColor || '#000000';
 
   return (
     <div style={styles.card}>
@@ -152,7 +152,7 @@ function OnlineRoomLobby({
         <p><strong>Status:</strong> {roomData?.status}</p>
         <p><strong>Current Turn:</strong> {sessionData?.currentTurn || 'N/A'}</p>
         <p><strong>Board Size:</strong> {roomData?.boardSize}</p>
-        <p><strong>Your Marker:</strong> {marker}</p>
+        <p><strong>Your Marker:</strong> <span style={{ color: currentMarkerColor, fontWeight: 700 }}>{currentMarkerLabel}</span></p>
         <p><strong>Session ID:</strong> {sessionData?._id || 'N/A'}</p>
         <p><strong>Role:</strong> {isHost ? 'Host' : 'Guest'}</p>
       </div>
@@ -176,7 +176,7 @@ function OnlineRoomLobby({
       {error && <p style={styles.error}>{error}</p>}
       {infoMessage && <p style={styles.info}>{infoMessage}</p>}
 
-      {isHost ? (
+      {isHost && !isGameOver ? (
         <div style={styles.row}>
           <div style={styles.labelBox}>Play at :</div>
           <select
@@ -191,7 +191,7 @@ function OnlineRoomLobby({
         </div>
       ) : null}
 
-      {isHost ? (
+      {isHost && !isGameOver ? (
         <button
           type="button"
           style={{
@@ -204,31 +204,32 @@ function OnlineRoomLobby({
         >
           {starting ? 'Starting...' : 'Start'}
         </button>
+      ) : isHost && isGameOver ? (
+        <>
+          <p style={styles.waitingText}>Game finished. Close the room to return to the main menu.</p>
+          <button
+            type="button"
+            onClick={onCloseRoom}
+            disabled={closing}
+            style={{
+              marginTop: 12,
+              padding: '8px 20px',
+              background: '#fee2e2',
+              color: '#b91c1c',
+              border: '1px solid #fca5a5',
+              borderRadius: 6,
+              cursor: closing ? 'not-allowed' : 'pointer',
+              fontWeight: 600,
+              fontSize: 14,
+            }}
+          >
+            {closing ? 'Closing...' : 'Close Room'}
+          </button>
+        </>
       ) : (
         <p style={styles.waitingText}>Waiting for host to start</p>
       )}
 
-      {/* Close Room button — host only, not when game is PLAYING */}
-      {isHost && roomData?.status !== 'PLAYING' && (
-        <button
-          type="button"
-          onClick={onCloseRoom}
-          disabled={closing}
-          style={{
-            marginTop: 12,
-            padding: '8px 20px',
-            background: '#fee2e2',
-            color: '#b91c1c',
-            border: '1px solid #fca5a5',
-            borderRadius: 6,
-            cursor: closing ? 'not-allowed' : 'pointer',
-            fontWeight: 600,
-            fontSize: 14,
-          }}
-        >
-          {closing ? 'Closing...' : 'Close Room'}
-        </button>
-      )}
     </div>
   );
 }

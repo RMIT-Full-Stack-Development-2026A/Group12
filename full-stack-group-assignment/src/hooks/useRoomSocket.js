@@ -107,7 +107,7 @@ export default function useRoomSocket({
     };
 
     const handleRoomClosed = (data) => {
-      if (onRoomClosedRef.current) onRoomClosedRef.current(data?.message || 'Host has closed the room.');
+      if (onRoomClosedRef.current) onRoomClosedRef.current(data?.message || 'This room is closed, return to main menu.');
     };
 
     socket.on('room_updated', handleRoomUpdated);

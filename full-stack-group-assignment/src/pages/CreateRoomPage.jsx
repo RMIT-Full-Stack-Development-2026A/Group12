@@ -1,11 +1,12 @@
 import CreateRoomForm from '../components/CreateRoomForm'
 
-function CreateRoomPage({ currentUser, onRequireLogin, initialJoinCode, onInitialJoinCodeConsumed }) {
+function CreateRoomPage({ currentUser, onRequireLogin, onExitToMenu, initialJoinCode, onInitialJoinCodeConsumed }) {
   return (
     <div style={styles.page}>
       <CreateRoomForm
         currentUser={currentUser}
         onRequireLogin={onRequireLogin}
+        onExitToMenu={onExitToMenu}
         initialJoinCode={initialJoinCode}
         onInitialJoinCodeConsumed={onInitialJoinCodeConsumed}
       />

@@ -1,6 +1,6 @@
 const { getIO } = require('../socket');
 const { createBoard, placeMarker, getGameStatus } = require('../utils/board');
-const { ALLOWED_MARKERS } = require('../constants/enums');
+const { ALLOWED_MARKERS, MARKER_COLORS } = require('../constants/enums');
 const roomRepo = require('../repositories/gameRoom.repository');
 const sessionRepo = require('../repositories/gameSession.repository');
 const { generateRoomCode } = require('../utils/roomCode');
@@ -27,6 +27,16 @@ const generateUniqueRoomCode = async () => {
 
 const getAlternativeMarker = (marker) => {
   return ALLOWED_MARKERS.find((item) => item !== marker) || 'O';
+};
+
+const getDefaultMarkerColor = (index = 0) => MARKER_COLORS[index] || '#000000';
+
+const normalizeMarkerColor = (value, fallbackIndex = 0) => {
+  const normalized = String(value || '').trim();
+  if (MARKER_COLORS.includes(normalized)) {
+    return normalized;
+  }
+  return getDefaultMarkerColor(fallbackIndex);
 };
 
 const isValidBoard = (board) => (
@@ -739,6 +749,8 @@ const createRoom = async ({ userId, gameMode, marker, boardSize, aiLevel, starte
       {
         userId,
         mark: marker,
+        displayMarker: marker,
+        markerColor: getDefaultMarkerColor(0),
         connected: true
       }
     ],
@@ -761,7 +773,7 @@ const createRoom = async ({ userId, gameMode, marker, boardSize, aiLevel, starte
   };
 };
 
-const joinRoom = async ({ userId, roomCode, marker }) => {
+const joinRoom = async ({ userId, roomCode, marker, markerColor }) => {
   const room = await roomRepo.findByRoomCode(roomCode);
 
   if (!room) {
@@ -787,15 +799,15 @@ const joinRoom = async ({ userId, roomCode, marker }) => {
     throw buildError('Room is full', 400);
   }
 
-  const usedMarkers = room.players.map((player) => player.mark);
-
-  if (usedMarkers.includes(marker)) {
-    throw buildError('This marker has already been chosen', 400);
-  }
+  const internalMarker = getAlternativeMarker(room.players[0]?.mark || marker);
+  const displayMarker = marker;
+  const resolvedMarkerColor = normalizeMarkerColor(markerColor, 1);
 
   room.players.push({
     userId,
-    mark: marker,
+    mark: internalMarker,
+    displayMarker,
+    markerColor: resolvedMarkerColor,
     connected: true,
   });
 

@@ -112,26 +112,28 @@ useEffect(() => {
           username: resolvedUsername,
           avatarUrl: resolvedAvatar,
           marker: player.mark,
+          displayMarker: player.displayMarker || player.mark,
+          markerColor: player.markerColor || '#000000',
         };
       });
     }
 
     if (gameMode === 'LOCAL') {
       return [
-        { label: 'Player 1', username, avatarUrl: toAssetUrl(currentUser?.avatarUrl || ''), marker: player1Marker },
-        { label: 'Player 2', username: player2Name, avatarUrl: '', marker: player2Marker || 'O' },
+        { label: 'Player 1', username, avatarUrl: toAssetUrl(currentUser?.avatarUrl || ''), marker: player1Marker, displayMarker: player1Marker, markerColor: '#000000' },
+        { label: 'Player 2', username: player2Name, avatarUrl: '', marker: player2Marker || 'O', displayMarker: player2Marker || 'O', markerColor: '#000000' },
       ];
     }
 
     if (gameMode === 'SINGLE') {
       return [
-        { label: 'You', username, avatarUrl: toAssetUrl(currentUser?.avatarUrl || ''), marker: player1Marker },
-        { label: 'Bot', username: BOT_NAME_BY_LEVEL[aiLevel] || 'Bot', avatarUrl: '', marker: player2Marker || 'O' },
+        { label: 'You', username, avatarUrl: toAssetUrl(currentUser?.avatarUrl || ''), marker: player1Marker, displayMarker: player1Marker, markerColor: '#000000' },
+        { label: 'Bot', username: BOT_NAME_BY_LEVEL[aiLevel] || 'Bot', avatarUrl: '', marker: player2Marker || 'O', displayMarker: player2Marker || 'O', markerColor: '#000000' },
       ];
     }
 
-    return [{ label: 'Player', username, avatarUrl: toAssetUrl(currentUser?.avatarUrl || ''), marker }];
-  }, [roomData, gameMode, username, marker, player1Marker, player2Marker, aiLevel, player2Name, currentUser]);
+    return [{ label: 'Player', username, avatarUrl: toAssetUrl(currentUser?.avatarUrl || ''), marker, displayMarker: marker, markerColor: '#000000' }];
+  }, [roomData, gameMode, username, marker, player1Marker, player2Marker, aiLevel, player2Name, currentUser, currentTheme.accent]);
 
   const playerNameByMarker = useMemo(() => {
     return players.reduce((map, player) => {
@@ -139,6 +141,20 @@ useEffect(() => {
       return map;
     }, {});
   }, [players]);
+
+  const playerViewByMarker = useMemo(() => {
+    return players.reduce((map, player) => {
+      if (player.marker) {
+        map[player.marker] = {
+          label: player.displayMarker || player.marker,
+          color: player.markerColor || currentTheme.accent,
+        };
+      }
+      return map;
+    }, {});
+  }, [players, currentTheme.accent]);
+
+  const currentPlayerView = playerViewByMarker[marker] || { label: marker, color: '#000000' };
 
   const winnerDisplayName = winner ? (playerNameByMarker[winner] || winner) : null;
   const currentTurnDisplayName = currentTurn ? (playerNameByMarker[currentTurn] || currentTurn) : '-';
@@ -236,7 +252,7 @@ useEffect(() => {
 
       <div style={{ ...styles.infoBox, borderColor: currentTheme.border, background: currentTheme.surface }}>
         <p><strong>Mode:</strong> {gameMode}</p>
-        <p><strong>Your marker:</strong> {marker}</p>
+        <p><strong>Your marker:</strong> <span style={{ color: currentPlayerView.color, fontWeight: 700 }}>{currentPlayerView.label || marker}</span></p>
         <p><strong>Board size:</strong> {boardSize} x {boardSize}</p>
         <p><strong>Status:</strong> {statusText}</p>
         <p>
@@ -277,7 +293,7 @@ useEffect(() => {
           >
             <p><strong>{player.label}</strong></p>
             <p style={{ fontSize: 13, color: '#555' }}>{player.username}</p>
-            <p style={{ fontSize: 13 }}>Marker: <strong>{player.marker}</strong></p>
+            <p style={{ fontSize: 13 }}>Marker: <strong style={{ color: player.markerColor || currentTheme.accent }}>{player.displayMarker || player.marker}</strong></p>
           </div>
         ))}
 
@@ -308,6 +324,7 @@ useEffect(() => {
       <div style={{ ...styles.grid, gridTemplateColumns: `repeat(${boardSize}, 40px)` }}>
         {flatBoard.map((cell, index) => {
           const isWinCell = winningCellSet.has(index);
+          const cellView = playerViewByMarker[cell] || null;
           return (
             <button
               key={index}
@@ -323,13 +340,13 @@ useEffect(() => {
               style={{
                 ...styles.cell,
                 borderColor: isWinCell ? '#f59e0b' : currentTheme.border,
-                color: currentTheme.accent,
+                color: cellView?.color || currentTheme.accent,
                 backgroundColor: isWinCell ? '#ffe066' : currentTheme.surface,
                 fontWeight: isWinCell ? 900 : 'bold',
                 border: isWinCell ? '2px solid #f59e0b' : `1px solid ${currentTheme.border}`,
               }}
             >
-              {loadingCell === index ? '...' : cell}
+              {loadingCell === index ? '...' : (cellView?.label || cell)}
             </button>
           );
         })}
