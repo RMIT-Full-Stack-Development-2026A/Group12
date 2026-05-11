@@ -173,39 +173,6 @@ function OnlineRoomLobby({
         </div>
       )}
 
-      {!hasTwoPlayers && (
-        <div style={styles.resultBox}>
-          <p><strong>User 2 Join This Room</strong></p>
-          <p>Share the link above or send this room code:</p>
-          <p><strong>{roomCode}</strong></p>
-
-          <div style={styles.row}>
-            <div style={styles.labelBox}>Join marker :</div>
-            <select
-              value={joinMarker}
-              onChange={(e) => setJoinMarker(e.target.value)}
-              style={styles.select}
-            >
-              <option value="">Select marker</option>
-              {availableJoinMarkers.map((item) => (
-                <option key={item} value={item}>
-                  {item}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => onJoinRoom(roomCode)}
-            disabled={joining}
-            style={styles.playButton}
-          >
-            {joining ? 'Joining...' : 'Join This Room'}
-          </button>
-        </div>
-      )}
-
       {error && <p style={styles.error}>{error}</p>}
       {infoMessage && <p style={styles.info}>{infoMessage}</p>}
 

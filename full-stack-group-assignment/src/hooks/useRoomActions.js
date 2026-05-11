@@ -83,8 +83,6 @@ export default function useRoomActions({
 
       if (gameMode === 'LOCAL' || gameMode === 'SINGLE') {
         setShowBoard(true);
-      } else {
-        setInfoMessage('Room created. Share the link and wait for player 2.');
       }
     } catch (err) {
       setError(err.message || 'Create game failed');
