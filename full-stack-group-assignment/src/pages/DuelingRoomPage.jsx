@@ -88,7 +88,7 @@ function DuelingRoomPage({ currentUser, onRejoin, onRequireLogin }) {
         {loading ? (
           <p style={styles.note}>Loading...</p>
         ) : entries.length === 0 ? (
-          <p style={styles.note}>Bạn không có dueling nào đang active.</p>
+          <p style={styles.note}>You have no active duels.</p>
         ) : (
           <div style={styles.list}>
             {entries.map((entry) => (

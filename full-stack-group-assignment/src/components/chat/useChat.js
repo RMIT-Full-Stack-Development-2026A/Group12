@@ -5,12 +5,12 @@ import { fetchChatHistory, sendChatMessage } from '../../services/chatService'
 const POPUP_DURATION_MS = 5000
 
 /**
- * Hook chứa toàn bộ state + side-effects cho chat.
+ * Hook that owns all chat state + side-effects.
  *
- * Trong tương lai để hỗ trợ replay (4.3.3): truyền source='replay' và replayMessages
- * — hook sẽ không subscribe socket / không fetch API mà thay vào đó schedule popups
- * theo timeline. Driver level tách rời UI components nên ChatPanel / AvatarPopup
- * reuse trực tiếp được.
+ * For future replay support (4.3.3): pass source='replay' and replayMessages
+ * — the hook will skip socket subscription / API fetch and instead schedule popups
+ * along the replay timeline. Driver layer is decoupled from UI components so
+ * ChatPanel / AvatarPopup can be reused directly.
  */
 export default function useChat({
   sessionId,

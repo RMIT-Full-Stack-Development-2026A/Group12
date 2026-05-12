@@ -1,7 +1,7 @@
 const { COUNTRY_LIST } = require('../constants/enums');
 
 const USERNAME_REGEX = /^[a-zA-Z0-9_-]+$/;
-// 1 @, domain có ít nhất 1 dấu chấm, không có space, dưới 255 ký tự
+// 1 @, domain has at least 1 dot, no spaces, under 255 chars
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function isNonEmpty(value) {
