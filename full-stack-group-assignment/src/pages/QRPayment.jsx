@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { API_ROOT_URL } from '../config/appConfig';
 
 function QRPayment() {
   const [orderId, setOrderId] = useState('');
@@ -22,13 +23,13 @@ function QRPayment() {
     if (!orderId) return;
 
     const interval = setInterval(async () => {
-      const res = await fetch(`/api/payment/status?orderId=${orderId}`);
+      const res = await fetch(`${API_ROOT_URL}/payment/status?orderId=${orderId}`);
       const data = await res.json();
 
       if (data.status === 'SUCCESS') {
         clearInterval(interval);
         alert('Payment successful!');
-        window.location.href = '/';
+        window.location.href = '/wallet';
       }
     }, 3000);
 
@@ -39,7 +40,7 @@ function QRPayment() {
   useEffect(() => {
     if (timeLeft <= 0) {
       alert('Payment expired');
-      window.location.href = '/';
+      window.location.href = '/wallet';
       return;
     }
 

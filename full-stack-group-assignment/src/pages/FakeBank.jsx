@@ -13,7 +13,7 @@ function FakeBank() {
 
   const handleConfirm = () => {
     window.location.href =
-      `${window.location.origin}/api/payment/vnpay-return` +
+      `${API_ROOT_URL}/payment/vnpay-return` +
       `?vnp_TxnRef=${orderId}` +
       `&vnp_ResponseCode=00` +
       `&type=qr`;

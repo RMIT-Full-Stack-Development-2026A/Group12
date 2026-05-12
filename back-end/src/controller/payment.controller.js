@@ -33,12 +33,12 @@ async function vnpayReturn(req, res) {
 
   if (result.success) {
     return res.redirect(
-      `${FRONTEND}/profile?payment=success`
+      `${FRONTEND}/wallet?payment=success`
     );
   }
 
   return res.redirect(
-    `${FRONTEND}/profile?payment=failed`
+    `${FRONTEND}/wallet?payment=failed`
   );
 }
 

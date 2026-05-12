@@ -4,8 +4,9 @@ import LoginRequiredPopup from './components/LoginRequiredPopup'
 import CreateRoomPage from './pages/CreateRoomPage'
 import HomePage from './pages/HomePage'
 import ProfilePage from './pages/ProfilePage'
+import WalletPage from './pages/WalletPage'
 import ArenaPage from './pages/ArenaPage'
-import { API_ORIGIN, TOKEN_STORAGE_KEY } from './config/appConfig'
+import { TOKEN_STORAGE_KEY } from './config/appConfig'
 import FakeVNPay from './pages/FakeVNPay'
 import QRPayment from './pages/QRPayment'
 import FakeBank from './pages/FakeBank'
@@ -16,6 +17,7 @@ const VIEWS = {
   AUTH: 'auth',
   CREATE: 'create',
   PROFILE: 'profile',
+  WALLET: 'wallet',
   FAKE_VNPAY: 'fake_vnpay',
   QR: 'qr',
   FAKE_BANK: 'fake_bank',
@@ -35,6 +37,7 @@ function App() {
   const shellTitle = useMemo(() => {
     if (view === VIEWS.CREATE) return 'Create Room'
     if (view === VIEWS.PROFILE) return 'User Profile'
+    if (view === VIEWS.WALLET) return 'Wallet & Subscription'
     if (view === VIEWS.AUTH) return 'Login / Register'
     return 'Tic Tac Toe'
   }, [view])
@@ -56,6 +59,13 @@ function App() {
   function goProfile() {
     requireAuth(() => {
       setView(VIEWS.PROFILE)
+      setIsMenuOpen(false)
+    })
+  }
+
+  function goWallet() {
+    requireAuth(() => {
+      setView(VIEWS.WALLET)
       setIsMenuOpen(false)
     })
   }
@@ -111,22 +121,33 @@ function App() {
   const displayName = currentUser?.username || 'Guest'
 
   useEffect(() => {
-  if (window.location.pathname === '/fake-vnpay') {
-    setView(VIEWS.FAKE_VNPAY);
-  }
-  }, []);
+    const pathname = window.location.pathname
 
-  useEffect(() => {
-  if (window.location.pathname === '/qr-payment') {
-    setView(VIEWS.QR);
-  }
-  }, []);
+    if (pathname === '/fake-vnpay') {
+      setView(VIEWS.FAKE_VNPAY)
+      return
+    }
 
-  useEffect(() => {
-  if (window.location.pathname === '/fake-bank') {
-    setView(VIEWS.FAKE_BANK);
-  }
-  }, []);
+    if (pathname === '/qr-payment') {
+      setView(VIEWS.QR)
+      return
+    }
+
+    if (pathname === '/fake-bank') {
+      setView(VIEWS.FAKE_BANK)
+      return
+    }
+
+    if (pathname === '/wallet') {
+      setView(VIEWS.WALLET)
+      return
+    }
+
+    if (pathname === '/profile') {
+      setView(VIEWS.PROFILE)
+      return
+    }
+  }, [])
 
   return (
     <div style={styles.shell}>
@@ -137,6 +158,9 @@ function App() {
       <nav style={styles.navbar}>
         <button type="button" style={styles.navBtn} onClick={goHome}>
           Home
+        </button>
+        <button type="button" style={styles.navBtn} onClick={goWallet}>
+          Wallet
         </button>
         <div style={styles.navRight}>
           <button
@@ -164,6 +188,10 @@ function App() {
 
               <button type="button" style={styles.menuAction} onClick={goProfile}>
                 Edit Profile
+              </button>
+
+              <button type="button" style={styles.menuAction} onClick={goWallet}>
+                Wallet & Subscription
               </button>
 
               <button
@@ -212,6 +240,13 @@ function App() {
             currentUser={currentUser}
             onRequestLogin={openAuth}
             onUserUpdated={handleUserUpdated}
+          />
+        ) : null}
+
+        {view === VIEWS.WALLET ? (
+          <WalletPage
+            currentUser={currentUser}
+            onRequestLogin={openAuth}
           />
         ) : null}
 

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { API_ROOT_URL } from '../config/appConfig';
 
 function FakeVNPay() {
   const [orderId, setOrderId] = useState('');
@@ -12,19 +13,20 @@ function FakeVNPay() {
   }, []);
 
   const handleSuccess = () => {
-  window.location.href =
-    `${window.location.origin.replace(':5173', ':5000')}/api/payment/vnpay-return` +
-    `?vnp_TxnRef=${orderId}` +
-    `&vnp_ResponseCode=00` +
-    `&vnp_Amount=${amount * 100}` +
-    `&type=wallet`; 
-};
+    window.location.href =
+      `${API_ROOT_URL}/payment/vnpay-return` +
+      `?vnp_TxnRef=${orderId}` +
+      `&vnp_ResponseCode=00` +
+      `&vnp_Amount=${amount * 100}` +
+      `&type=wallet`;
+  };
 
   const handleFail = () => {
     window.location.href =
-      `http://localhost:5000/api/payment/vnpay-return` +
+      `${API_ROOT_URL}/payment/vnpay-return` +
       `?vnp_TxnRef=${orderId}` +
-      `&vnp_ResponseCode=01`;
+      `&vnp_ResponseCode=01` +
+      `&type=wallet`;
   };
 
   return (
