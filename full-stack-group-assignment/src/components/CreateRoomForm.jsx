@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useState } from 'react';
 import GameBoard from '../components/GameBoard';
 import CreateGamePanel from './room/CreateGamePanel';
 import JoinRoomPanel from './room/JoinRoomPanel';
@@ -10,9 +10,10 @@ import useRoomSocket from '../hooks/useRoomSocket';
 import { getSessionByRoom, getRoom, getSessionById } from '../services/roomService';
 import { MARKERS } from '../constants/gameOptions';
 
-function CreateRoomForm({ currentUser, onRequireLogin, initialJoinCode, onInitialJoinCodeConsumed, resumeEntry, onResumeEntryConsumed }) {
+function CreateRoomForm({ currentUser, onRequireLogin, onExitToMenu, initialJoinCode, onInitialJoinCodeConsumed, resumeEntry, onResumeEntryConsumed, onGameStatusChange }) {
   const currentUserId = currentUser?._id || '';
   const currentUsername = currentUser?.username || '';
+  const [roomClosedMessage, setRoomClosedMessage] = useState('');
 
   const {
     gameMode, setGameMode,
@@ -33,6 +34,7 @@ function CreateRoomForm({ currentUser, onRequireLogin, initialJoinCode, onInitia
     showBoard, setShowBoard,
     joinRoomCode, setJoinRoomCode,
     joinMarker, setJoinMarker,
+    joinMarkerColor, setJoinMarkerColor,
     handlePlay,
     handleJoinRoom,
     handleStartRoom,
@@ -69,12 +71,8 @@ function CreateRoomForm({ currentUser, onRequireLogin, initialJoinCode, onInitia
   const hasTwoPlayers = (roomData?.players?.length || 0) >= 2;
   const isOnlineWaiting = gameMode === 'ONLINE' && !!roomCode && !!roomData && !showBoard;
   const onlineGuestMarker = roomData?.players?.[1]?.mark || sessionData?.player2Marker || '';
-
-  const usedMarkers = useMemo(() => {
-    const players = resultData?.data?.room?.players || [];
-    return players.map((p) => p.mark);
-  }, [resultData]);
-  const availableJoinMarkers = MARKERS.filter((item) => !usedMarkers.includes(item));
+  const isGameOver = ['WIN', 'DRAW', 'FINISHED'].includes(sessionData?.status || '');
+  const isHostRoom = !!hostUserId && String(currentUserId) === String(hostUserId);
 
   useRoomSocket({
     roomCode,
@@ -86,8 +84,16 @@ function CreateRoomForm({ currentUser, onRequireLogin, initialJoinCode, onInitia
     setInfoMessage,
     onFetchSession: getSessionByRoom,
     onRoomClosed: (msg) => {
-      setInfoMessage(msg);
-      resetToCreateGame();
+      if (isHostRoom) {
+        resetToCreateGame();
+        onExitToMenu?.();
+        return;
+      }
+
+      setRoomClosedMessage(msg || 'This room is closed, return to main menu.');
+      setShowBoard(false);
+      setError('');
+      setInfoMessage('');
     },
   });
 
@@ -150,6 +156,16 @@ function CreateRoomForm({ currentUser, onRequireLogin, initialJoinCode, onInitia
     }
   }, [resumeEntry]);
 
+  useEffect(() => {
+    if (showBoard) {
+      setRoomClosedMessage('');
+    }
+  }, [showBoard]);
+
+  useEffect(() => {
+    onGameStatusChange?.(showBoard);
+  }, [showBoard, onGameStatusChange]);
+
   const handleCopyLink = async () => {
     if (!roomLink) return;
     await navigator.clipboard.writeText(roomLink);
@@ -173,6 +189,22 @@ function CreateRoomForm({ currentUser, onRequireLogin, initialJoinCode, onInitia
       alert('Share is not supported. Link copied instead.');
     }
   };
+
+  if (roomClosedMessage) {
+    return (
+      <div style={styles.page}>
+        <div style={styles.card}>
+          <div style={{ textAlign: 'center', padding: '40px 20px' }}>
+            <h2 style={{ marginTop: 0, marginBottom: 16 }}>This room is closed, return to main menu</h2>
+            <p style={{ marginBottom: 20, color: '#555' }}>{roomClosedMessage}</p>
+            <button type="button" style={styles.playButton} onClick={() => onExitToMenu?.() || resetToCreateGame()}>
+              Exit
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (showBoard) {
     const finalBoardSize = roomData?.boardSize || sessionData?.boardSize || Number(boardSize) || 10;
@@ -251,6 +283,8 @@ function CreateRoomForm({ currentUser, onRequireLogin, initialJoinCode, onInitia
             setJoinRoomCode={setJoinRoomCode}
             joinMarker={joinMarker}
             setJoinMarker={setJoinMarker}
+            joinMarkerColor={joinMarkerColor}
+            setJoinMarkerColor={setJoinMarkerColor}
             joining={joining}
             onJoinRoom={handleJoinRoom}
             styles={styles}
@@ -265,12 +299,8 @@ function CreateRoomForm({ currentUser, onRequireLogin, initialJoinCode, onInitia
           marker={marker}
           isHost={isHost}
           hasTwoPlayers={hasTwoPlayers}
-          joining={joining}
           starting={starting}
           closing={closing}
-          joinMarker={joinMarker}
-          setJoinMarker={setJoinMarker}
-          availableJoinMarkers={availableJoinMarkers}
           onJoinRoom={handleJoinRoom}
           onStartRoom={() => handleStartRoom(roomCode, isHost, onlineGuestMarker)}
           onCloseRoom={() => handleCloseRoom(roomCode)}
@@ -286,6 +316,7 @@ function CreateRoomForm({ currentUser, onRequireLogin, initialJoinCode, onInitia
           infoMessage={infoMessage}
           nextStarterRole={nextStarterRole}
           setNextStarterRole={setNextStarterRole}
+          isGameOver={isGameOver}
           styles={styles}
         />
       )}

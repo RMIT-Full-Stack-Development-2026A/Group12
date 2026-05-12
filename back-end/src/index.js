@@ -60,6 +60,8 @@ function startServer() {
   server.listen(PORT, () => {
     console.log(`Server started on port ${PORT}`);
   });
+
+  return server;
 }
 
 const CLEANUP_INTERVAL_MS = 15 * 60 * 1000;
@@ -79,13 +81,14 @@ async function runRoomCleanup() {
   }
 }
 
+const server = startServer();
+
 connectToDatabase()
-  .then(startServer)
   .then(() => {
     setInterval(runRoomCleanup, CLEANUP_INTERVAL_MS);
     runRoomCleanup();
   })
   .catch((error) => {
-    console.error('Unable to start server:', error.message);
-    process.exit(1);
+    console.error('Unable to connect to MongoDB:', error.message);
+    console.error('Socket and HTTP server are still running. Fix the database connection to enable room/game features.');
   });

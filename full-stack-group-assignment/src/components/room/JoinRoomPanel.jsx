@@ -1,10 +1,12 @@
-import { MARKERS } from '../../constants/gameOptions';
+import { MARKER_COLOR_OPTIONS, MARKERS } from '../../constants/gameOptions';
 
 function JoinRoomPanel({
   joinRoomCode,
   setJoinRoomCode,
   joinMarker,
   setJoinMarker,
+  joinMarkerColor,
+  setJoinMarkerColor,
   joining,
   onJoinRoom,
   styles,
@@ -34,6 +36,21 @@ function JoinRoomPanel({
           {MARKERS.map((item) => (
             <option key={item} value={item}>
               {item}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div style={styles.row}>
+        <div style={styles.labelBox}>Marker color :</div>
+        <select
+          value={joinMarkerColor}
+          onChange={(e) => setJoinMarkerColor(e.target.value)}
+          style={styles.select}
+        >
+          {MARKER_COLOR_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
             </option>
           ))}
         </select>

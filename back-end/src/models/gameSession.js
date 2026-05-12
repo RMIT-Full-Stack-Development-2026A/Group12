@@ -233,7 +233,15 @@ const GameSessionSchema = new mongoose.Schema({
   endTime: {
     type: Date,
     default: null
-  }
+  },
+  turnDeadlineAt: {
+  type: Date,
+  default: null
+},
+timeoutLose: {
+  type: String,
+  default: null
+},
 }, { timestamps: true });
 
 GameSessionSchema.index({ roomId: 1, sessionNumber: -1 });

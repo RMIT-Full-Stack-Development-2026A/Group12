@@ -31,7 +31,8 @@ const joinRoomController = async (req, res) => {
     const { error, value } = validateJoinRoomDto({
       userId: req.body.userId,
       marker: req.body.marker,
-      roomCode: req.params.roomCode
+      roomCode: req.params.roomCode,
+      markerColor: req.body.markerColor
     });
 
     if (error) {

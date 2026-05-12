@@ -174,7 +174,7 @@ function AuthForm({ onAuthSuccess, onClose }) {
     verifyProtectedSession(user?._id)
 
     if (onAuthSuccess) {
-      onAuthSuccess(user)
+      onAuthSuccess(user, { openCreate: true })
     }
     setMessage('Register successful')
   }
@@ -211,7 +211,7 @@ function AuthForm({ onAuthSuccess, onClose }) {
     verifyProtectedSession(user?._id)
 
     if (onAuthSuccess) {
-      onAuthSuccess(user)
+      onAuthSuccess(user, { openCreate: false })
     }
     setMessage('Login successful')
   }

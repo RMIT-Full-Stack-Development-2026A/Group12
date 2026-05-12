@@ -2,13 +2,13 @@ import { apiClient } from './ApiClient';
 
 const ROOMS = '/rooms';
 
-export const createGame = async ({ userId, gameMode, marker, boardSize, aiLevel = 'easy', starterMarker }) => {
-  const res = await apiClient.post(`${ROOMS}/create`, { userId, gameMode, marker, boardSize, aiLevel, starterMarker });
+export const createGame = async ({ userId, gameMode, marker, boardSize, aiLevel = 'easy', starterMarker, markerColor }) => {
+  const res = await apiClient.post(`${ROOMS}/create`, { userId, gameMode, marker, boardSize, aiLevel, starterMarker, markerColor });
   return res.data;
 };
 
-export const joinRoom = async ({ roomCode, userId, marker }) => {
-  const res = await apiClient.post(`${ROOMS}/join/${roomCode}`, { userId, marker });
+export const joinRoom = async ({ roomCode, userId, marker, markerColor }) => {
+  const res = await apiClient.post(`${ROOMS}/join/${roomCode}`, { userId, marker, markerColor });
   return res.data;
 };
 

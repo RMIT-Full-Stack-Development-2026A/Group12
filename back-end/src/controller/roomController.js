@@ -1,4 +1,5 @@
 const { getIO } = require('../socket');
+const roomRepo = require('../repositories/gameRoom.repository');
 const sessionRepo = require('../repositories/gameSession.repository');
 
 const surrenderGameController = async (req, res) => {
@@ -49,6 +50,19 @@ const surrenderGameController = async (req, res) => {
 
     if (updatedSession.roomCode) {
       const io = getIO();
+      const room = await roomRepo.findByRoomCode(updatedSession.roomCode);
+
+      if (room && room.status !== 'FINISHED') {
+        room.status = 'FINISHED';
+        room.replayRequests = [];
+        await roomRepo.save(room);
+
+        const populatedRoom = await roomRepo.findByRoomCodeWithPlayers(updatedSession.roomCode);
+        if (populatedRoom) {
+          io.to(updatedSession.roomCode).emit('room_updated', populatedRoom.toObject());
+        }
+      }
+
       io.to(updatedSession.roomCode).emit('session_updated', updatedSession);
     }
 
