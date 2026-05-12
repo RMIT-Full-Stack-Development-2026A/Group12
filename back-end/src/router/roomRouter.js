@@ -45,7 +45,13 @@ const {
   playAgainController,
   listWaitingRoomsController,
   closeRoomController,
+  listMyDuelingEntriesController,
+  getSessionByIdController,
+  sendChatMessageController,
+  getChatHistoryController,
 } = require('../controller/game.controller');
+
+const { authenticateJWT } = require('../middleware/jwtAuth');
 
 const {
   surrenderGameController
@@ -59,6 +65,16 @@ router.post('/join/:roomCode', joinRoomController);
 
 // List waiting rooms (arena) — must be before /:roomCode to avoid conflict
 router.get('/arena', listWaitingRoomsController);
+
+// My active dueling entries (requires auth)
+router.get('/my-rooms', authenticateJWT, listMyDuelingEntriesController);
+
+// Get session by ID (requires auth, for SINGLE/LOCAL rejoin)
+router.get('/session/:sessionId', authenticateJWT, getSessionByIdController);
+
+// Chat for ONLINE sessions (requires auth)
+router.get('/session/:sessionId/chat', authenticateJWT, getChatHistoryController);
+router.post('/session/:sessionId/chat', authenticateJWT, sendChatMessageController);
 
 // Get room info
 router.get('/:roomCode', getRoomController);

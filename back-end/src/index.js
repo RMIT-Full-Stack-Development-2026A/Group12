@@ -40,7 +40,12 @@ function startServer() {
     }
   });
 
-  initSocket(io, { onAllDisconnected: gameService.closeRoomOnAllDisconnected });
+  initSocket(io, {
+    onRoomEmpty: gameService.scheduleRoomCleanup,
+    onRoomRejoined: gameService.cancelRoomCleanup,
+    onSessionEmpty: gameService.scheduleSessionCleanup,
+    onSessionRejoined: gameService.cancelSessionCleanup,
+  });
 
   server.once('error', (error) => {
     if (error.code === 'EADDRINUSE') {

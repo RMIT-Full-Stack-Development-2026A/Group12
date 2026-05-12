@@ -5,6 +5,7 @@ import CreateRoomPage from './pages/CreateRoomPage'
 import HomePage from './pages/HomePage'
 import ProfilePage from './pages/ProfilePage'
 import ArenaPage from './pages/ArenaPage'
+import DuelingRoomPage from './pages/DuelingRoomPage'
 import { TOKEN_STORAGE_KEY } from './config/appConfig'
 import { toAssetUrl } from './utils/gameUtils'
 
@@ -14,6 +15,7 @@ const VIEWS = {
   CREATE: 'create',
   PROFILE: 'profile',
   ARENA: 'arena',
+  DUELING: 'dueling',
 }
 
 function App() {
@@ -25,12 +27,14 @@ function App() {
   const isAuthed = Boolean(currentUser)
 
   const [arenaJoinCode, setArenaJoinCode] = useState('')
+  const [duelingResume, setDuelingResume] = useState(null)
 
   const shellTitle = useMemo(() => {
     if (view === VIEWS.CREATE) return 'Create Room'
     if (view === VIEWS.PROFILE) return 'User Profile'
     if (view === VIEWS.AUTH) return 'Login / Register'
     if (view === VIEWS.ARENA) return 'Arena'
+    if (view === VIEWS.DUELING) return 'Dueling Room'
     return 'Tic Tac Toe'
   }, [view])
 
@@ -60,8 +64,18 @@ function App() {
     setIsMenuOpen(false)
   }
 
+  function goDueling() {
+    setView(VIEWS.DUELING)
+    setIsMenuOpen(false)
+  }
+
   function handleJoinFromArena(roomCode) {
     setArenaJoinCode(roomCode)
+    setView(VIEWS.CREATE)
+  }
+
+  function handleRejoinFromDueling(entry) {
+    setDuelingResume(entry)
     setView(VIEWS.CREATE)
   }
 
@@ -87,7 +101,7 @@ function App() {
   }
 
   function handleLogout() {
-    localStorage.removeItem(TOKEN_STORAGE_KEY)
+    sessionStorage.removeItem(TOKEN_STORAGE_KEY)
     setCurrentUser(null)
     setIsGateOpen(false)
     setIsMenuOpen(false)
@@ -111,6 +125,9 @@ function App() {
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <button type="button" style={styles.navBtn} onClick={goHome}>
             Home
+          </button>
+          <button type="button" style={styles.navBtn} onClick={goDueling}>
+            Dueling Room
           </button>
           <button type="button" style={styles.navBtn} onClick={goArena}>
             Arena
@@ -182,6 +199,8 @@ function App() {
             onRequireLogin={requireCreateLogin}
             initialJoinCode={arenaJoinCode}
             onInitialJoinCodeConsumed={() => setArenaJoinCode('')}
+            resumeEntry={duelingResume}
+            onResumeEntryConsumed={() => setDuelingResume(null)}
           />
         ) : null}
 
@@ -189,6 +208,14 @@ function App() {
           <ArenaPage
             currentUser={currentUser}
             onJoinRoom={handleJoinFromArena}
+            onRequireLogin={requireCreateLogin}
+          />
+        ) : null}
+
+        {view === VIEWS.DUELING ? (
+          <DuelingRoomPage
+            currentUser={currentUser}
+            onRejoin={handleRejoinFromDueling}
             onRequireLogin={requireCreateLogin}
           />
         ) : null}

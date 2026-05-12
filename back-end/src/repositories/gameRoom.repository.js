@@ -95,6 +95,21 @@ const setReplayRequests = (roomId, replayRequests) => {
   );
 };
 
+const findActiveByUserId = (userId) => {
+  return GameRoom.find({
+    'players.userId': userId,
+    status: { $in: ['WAITING', 'READY', 'PLAYING'] },
+    closedAt: null,
+  })
+    .populate('players.userId', 'username avatarUrl')
+    .populate('currentSessionId', 'boardSize status currentTurn')
+    .sort({ updatedAt: -1 });
+};
+
+const deleteByRoomCode = (roomCode) => {
+  return GameRoom.deleteOne({ roomCode });
+};
+
 module.exports = {
   findById,
   findByRoomCode,
@@ -109,5 +124,7 @@ module.exports = {
   setCurrentSession,
   clearCurrentSession,
   setStatus,
-  setReplayRequests
+  setReplayRequests,
+  findActiveByUserId,
+  deleteByRoomCode,
 };

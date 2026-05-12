@@ -92,22 +92,6 @@ const mongoose = require('mongoose');
 
 const ALLOWED_MARKERS = ['X', 'O', 'A', 'B', '△', '○'];
 
-const ChatSchema = new mongoose.Schema({
-  senderId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    default: null
-  },
-  message: {
-    type: String,
-    required: true
-  },
-  timestamp: {
-    type: Date,
-    default: Date.now
-  }
-}, { _id: false });
-
 const PlayerSchema = new mongoose.Schema({
   userId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -172,11 +156,6 @@ const GameRoomSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
   }],
-
-  chat: {
-    type: [ChatSchema],
-    default: []
-  },
 
   createdAt: {
     type: Date,

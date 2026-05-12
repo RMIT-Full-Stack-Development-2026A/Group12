@@ -158,6 +158,77 @@ const listWaitingRoomsController = async (req, res) => {
   }
 };
 
+const listMyDuelingEntriesController = async (req, res) => {
+  try {
+    const userId = req.auth?.userId;
+    if (!userId) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
+    const entries = await gameService.listMyDuelingEntries(userId);
+    return res.status(200).json({ success: true, data: entries });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+const getSessionByIdController = async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const userId = req.auth?.userId;
+    if (!userId) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
+    const session = await gameService.getSessionById(sessionId, userId);
+    return res.status(200).json({ success: true, data: session });
+  } catch (error) {
+    return res.status(error.status || 500).json({
+      success: false,
+      message: error.message || 'Get session failed'
+    });
+  }
+};
+
+const sendChatMessageController = async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const senderId = req.auth?.userId;
+    if (!senderId) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
+
+    const { type, content } = req.body || {};
+    const senderUsername = req.body?.senderUsername || req.auth?.username || '';
+
+    const message = await gameService.sendChatMessage({
+      sessionId,
+      senderId,
+      senderUsername,
+      type,
+      content,
+    });
+
+    return res.status(201).json({ success: true, data: message });
+  } catch (error) {
+    return res.status(error.status || 500).json({
+      success: false,
+      message: error.message || 'Send chat message failed'
+    });
+  }
+};
+
+const getChatHistoryController = async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const chat = await gameService.getChatHistory(sessionId);
+    return res.status(200).json({ success: true, data: chat });
+  } catch (error) {
+    return res.status(error.status || 500).json({
+      success: false,
+      message: error.message || 'Get chat history failed'
+    });
+  }
+};
+
 const closeRoomController = async (req, res) => {
   try {
     const { roomCode } = req.params;
@@ -185,4 +256,8 @@ module.exports = {
   playAgainController,
   listWaitingRoomsController,
   closeRoomController,
+  listMyDuelingEntriesController,
+  getSessionByIdController,
+  sendChatMessageController,
+  getChatHistoryController,
 };

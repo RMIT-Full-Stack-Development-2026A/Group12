@@ -1,6 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { makeMove, surrenderGame } from '../services/roomService';
 import { toAlgebraicNotation, toAssetUrl, computeWinningCells } from '../utils/gameUtils';
+import MailIconButton from './chat/MailIconButton';
+import AvatarPopup from './chat/AvatarPopup';
+import ChatPanel from './chat/ChatPanel';
+import useChat from './chat/useChat';
+import { chatStyles } from './chat/styles';
 
 const BOARD_STYLE_THEMES = {
   1: { surface: '#ffffff', border: '#7c7c7c', accent: '#4a4a4a', soft: '#f5f5f5' },
@@ -38,6 +44,7 @@ function GameBoard({
   const [loadingCell, setLoadingCell] = useState(null);
   const [error, setError] = useState('');
   const [isAiThinking, setIsAiThinking] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
   const snapshotRef = useRef(null);
   const [sessionState, setSessionState] = useState(
     resultData?.data?.session || resultData?.data || null
@@ -63,6 +70,14 @@ function GameBoard({
     resultData?.data?._id ||
     '';
 
+  const chat = useChat({
+    sessionId,
+    roomCode,
+    gameMode,
+    currentUserId: currentUser?._id,
+    isOpen: chatOpen,
+  });
+
   const board = sessionState?.board || [];
   const player1Marker = sessionState?.player1Marker || marker || 'X';
   const player2Marker = sessionState?.player2Marker || roomData?.players?.[1]?.mark || '';
@@ -83,7 +98,8 @@ function GameBoard({
       return roomData.players.map((player, index) => {
         const u = player.userId;
         const isPopulated = u && typeof u === 'object' && u.username;
-        const isCurrentUser = String(u?._id || u) === String(currentUser?._id);
+        const resolvedUserId = String(u?._id || u || '');
+        const isCurrentUser = resolvedUserId === String(currentUser?._id);
         const resolvedUsername = isPopulated
           ? u.username
           : (isCurrentUser ? currentUser?.username : null) || `Player ${index + 1}`;
@@ -92,6 +108,7 @@ function GameBoard({
           : (isCurrentUser ? toAssetUrl(currentUser?.avatarUrl || '') : '');
         return {
           label: `Player ${index + 1}`,
+          userId: resolvedUserId,
           username: resolvedUsername,
           avatarUrl: resolvedAvatar,
           marker: player.mark,
@@ -192,9 +209,38 @@ function GameBoard({
         ? 'Draw game'
         : `Current turn: ${currentTurnDisplayName}`;
 
+  const isOnline = gameMode === 'ONLINE';
+  const inputDisabled = isFinished;
+
+  // Toggle body class so CSS can shift the entire page content left when chat is open.
+  // White card + page background shift together as a single block — chat panel is a portal sibling.
+  useEffect(() => {
+    if (!isOnline) return;
+    if (chatOpen) {
+      document.body.classList.add('chat-open');
+    } else {
+      document.body.classList.remove('chat-open');
+    }
+    return () => {
+      document.body.classList.remove('chat-open');
+    };
+  }, [chatOpen, isOnline]);
+
   return (
     <div style={{ ...styles.wrapper, background: currentTheme.soft }}>
-      <h2 style={{ ...styles.title, color: currentTheme.accent }}>Game Board</h2>
+      <div style={chatStyles.titleRow}>
+        <h2 style={{ ...styles.title, color: currentTheme.accent, marginBottom: 0 }}>Game Board</h2>
+        {isOnline ? (
+          <div style={chatStyles.mailIconAnchor}>
+            <MailIconButton
+              isOpen={chatOpen}
+              unreadCount={chat.unreadCount}
+              onClick={() => setChatOpen((o) => !o)}
+            />
+          </div>
+        ) : null}
+      </div>
+      <div style={{ height: 12 }} />
 
       {readOnly ? (
         <div style={styles.spectatorBanner}>Spectating — view only</div>
@@ -223,7 +269,8 @@ function GameBoard({
 
       <div style={styles.playersBox}>
         {/* Left side avatar (Player 1) */}
-        <div style={styles.sideAvatar}>
+        <div style={{ ...styles.sideAvatar, position: 'relative' }}>
+          {isOnline ? <AvatarPopup popup={chat.popups[players[0]?.userId]} /> : null}
           {players[0]?.avatarUrl ? (
             <img
               src={players[0].avatarUrl}
@@ -254,7 +301,8 @@ function GameBoard({
         ))}
 
         {/* Right side avatar (Player 2) */}
-        <div style={styles.sideAvatar}>
+        <div style={{ ...styles.sideAvatar, position: 'relative' }}>
+          {isOnline ? <AvatarPopup popup={chat.popups[players[1]?.userId]} /> : null}
           {players[1]?.avatarUrl ? (
             <img
               src={players[1].avatarUrl}
@@ -332,6 +380,22 @@ function GameBoard({
           </button>
         </div>
       ) : null}
+
+      {isOnline && chatOpen
+        ? createPortal(
+            <ChatPanel
+              isOpen={chatOpen}
+              onClose={() => setChatOpen(false)}
+              messages={chat.messages}
+              currentUserId={currentUser?._id}
+              onSendText={chat.sendText}
+              onSendSticker={chat.sendSticker}
+              error={chat.error}
+              inputDisabled={inputDisabled}
+            />,
+            document.body,
+          )
+        : null}
     </div>
   );
 }

@@ -3,6 +3,7 @@ const { createBoard, placeMarker, getGameStatus } = require('../utils/board');
 const { ALLOWED_MARKERS } = require('../constants/enums');
 const roomRepo = require('../repositories/gameRoom.repository');
 const sessionRepo = require('../repositories/gameSession.repository');
+const authRepository = require('../repositories/authRepository');
 const { generateRoomCode } = require('../utils/roomCode');
 
 const buildError = (message, status = 400) => {
@@ -588,6 +589,10 @@ const applyBotMoveToSession = async (session) => {
     session.currentTurn = session.player1Marker;
   }
 
+  // Re-fetch to guard against concurrent abort (grace-period cleanup race)
+  const freshSession = await sessionRepo.findById(session._id);
+  if (!freshSession || freshSession.status === 'FINISHED') return session;
+
   await sessionRepo.save(session);
 
   return session;
@@ -744,7 +749,6 @@ const createRoom = async ({ userId, gameMode, marker, boardSize, aiLevel, starte
     status: 'WAITING',
     currentSessionId: null,
     replayRequests: [],
-    chat: [],
     startedAt: null,
     closedAt: null
   });
@@ -774,9 +778,10 @@ const joinRoom = async ({ userId, roomCode, marker }) => {
   );
 
   if (alreadyInRoom) {
+    const populatedRoom = await roomRepo.findByRoomCodeWithPlayers(roomCode);
     return {
       message: 'You are already in this room',
-      data: room,
+      data: populatedRoom,
     };
   }
 
@@ -970,6 +975,18 @@ const makeMove = async ({ sessionId, row, col, marker }) => {
   };
 };
 
+const getSessionById = async (sessionId, requestingUserId) => {
+  const session = await sessionRepo.findById(sessionId);
+  if (!session) throw buildError('Session not found', 404);
+
+  const p1 = String(session.player1Id || '');
+  const p2 = String(session.player2Id || '');
+  const uid = String(requestingUserId);
+  if (uid !== p1 && uid !== p2) throw buildError('Forbidden', 403);
+
+  return session;
+};
+
 const getRoom = async (roomCode) => {
   const room = await roomRepo.findByRoomCodeWithPlayers(roomCode);
 
@@ -1103,12 +1120,53 @@ const listArenaRooms = async () => {
   return listWaitingRooms();
 };
 
+const listMyDuelingEntries = async (userId) => {
+  const [onlineRooms, soloSessions] = await Promise.all([
+    roomRepo.findActiveByUserId(userId),
+    sessionRepo.findActiveSoloByUserId(userId),
+  ]);
+
+  const onlineEntries = onlineRooms.map((room) => {
+    const hostPlayer = room.players?.[0];
+    const guestPlayer = room.players?.[1];
+    const isHost = String(hostPlayer?.userId?._id || hostPlayer?.userId) === String(userId);
+    const opponentPlayer = isHost ? guestPlayer : hostPlayer;
+    return {
+      kind: 'ONLINE',
+      roomCode: room.roomCode,
+      sessionId: room.currentSessionId ? String(room.currentSessionId._id || room.currentSessionId) : null,
+      status: room.status,
+      boardSize: room.boardSize,
+      hostMarker: room.hostMarker,
+      isHost,
+      opponentUsername: opponentPlayer?.userId?.username || null,
+      lastActivity: room.updatedAt,
+    };
+  });
+
+  const soloEntries = soloSessions.map((session) => ({
+    kind: session.gameType,
+    sessionId: String(session._id),
+    boardSize: session.boardSize,
+    status: session.status,
+    aiLevel: session.aiLevel || null,
+    currentTurn: session.currentTurn,
+    lastActivity: session.updatedAt,
+  }));
+
+  return [...onlineEntries, ...soloEntries].sort(
+    (a, b) => new Date(b.lastActivity) - new Date(a.lastActivity)
+  );
+};
+
 const cleanupExpiredWaitingRooms = async () => {
   return roomRepo.deleteExpiredWaitingRooms();
 };
 
 const cleanupStaleDuelingRooms = async () => {
   const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
+
+  // Abort stale ONLINE sessions and close their rooms
   const staleSessions = await sessionRepo.findStalePlayingSessions(twoHoursAgo);
   let count = 0;
   for (const session of staleSessions) {
@@ -1122,10 +1180,30 @@ const cleanupStaleDuelingRooms = async () => {
     }
     count += 1;
   }
+
+  // Abort orphan SINGLE/LOCAL sessions (no roomId, still PLAYING/WAITING after 2h)
+  const orphanSessions = await sessionRepo.findStaleOrphanSessions(twoHoursAgo);
+  for (const session of orphanSessions) {
+    await sessionRepo.abortSession(session._id);
+    count += 1;
+  }
+
   return { closedDuelingRooms: count };
 };
 
-const closeRoomOnAllDisconnected = async (roomCode) => {
+// In-memory grace-period timers (cleared on server restart; stale cleanup is the fallback)
+const roomCleanupTimers = new Map();    // roomCode → timeoutId
+const sessionCleanupTimers = new Map(); // sessionId (string) → timeoutId
+
+const CLEANUP_GRACE_MS = 30_000;
+
+const _performRoomCleanup = async (roomCode) => {
+  roomCleanupTimers.delete(roomCode);
+  const io = getIO();
+  // Re-check: if someone rejoined during grace period, skip
+  const currentSize = io.sockets.adapter.rooms.get(roomCode)?.size || 0;
+  if (currentSize > 0) return;
+
   const room = await roomRepo.findByRoomCode(roomCode);
   if (!room || ['CLOSED', 'FINISHED'].includes(room.status)) return;
 
@@ -1133,13 +1211,57 @@ const closeRoomOnAllDisconnected = async (roomCode) => {
     await sessionRepo.abortSession(room.currentSessionId);
   }
 
-  room.status = 'CLOSED';
-  room.closedAt = new Date();
-  await roomRepo.save(room);
-
-  const io = getIO();
   io.to(roomCode).emit('room_closed', { roomCode, message: 'All players have left the room.' });
+  await roomRepo.deleteByRoomCode(roomCode);
 };
+
+const scheduleRoomCleanup = (roomCode) => {
+  if (roomCleanupTimers.has(roomCode)) return;
+  const id = setTimeout(() => _performRoomCleanup(roomCode).catch(console.error), CLEANUP_GRACE_MS);
+  roomCleanupTimers.set(roomCode, id);
+};
+
+const cancelRoomCleanup = (roomCode) => {
+  const id = roomCleanupTimers.get(roomCode);
+  if (id !== undefined) {
+    clearTimeout(id);
+    roomCleanupTimers.delete(roomCode);
+  }
+};
+
+const _performSessionCleanup = async (sessionId) => {
+  sessionCleanupTimers.delete(sessionId);
+  const io = getIO();
+  const channelKey = `session:${sessionId}`;
+  const currentSize = io.sockets.adapter.rooms.get(channelKey)?.size || 0;
+  if (currentSize > 0) return;
+
+  const session = await sessionRepo.findById(sessionId);
+  // Only abort SINGLE/LOCAL sessions that are still active; ONLINE sessions are handled by room cleanup
+  if (!session || !['SINGLE', 'LOCAL'].includes(session.gameType)) return;
+  if (!['WAITING', 'PLAYING'].includes(session.status)) return;
+
+  await sessionRepo.abortSession(sessionId);
+};
+
+const scheduleSessionCleanup = (sessionId) => {
+  const key = String(sessionId);
+  if (sessionCleanupTimers.has(key)) return;
+  const id = setTimeout(() => _performSessionCleanup(key).catch(console.error), CLEANUP_GRACE_MS);
+  sessionCleanupTimers.set(key, id);
+};
+
+const cancelSessionCleanup = (sessionId) => {
+  const key = String(sessionId);
+  const id = sessionCleanupTimers.get(key);
+  if (id !== undefined) {
+    clearTimeout(id);
+    sessionCleanupTimers.delete(key);
+  }
+};
+
+// Legacy: kept for backward compat (server.js may reference it)
+const closeRoomOnAllDisconnected = (roomCode) => scheduleRoomCleanup(roomCode);
 
 const closeRoom = async (roomCode, userId) => {
   const room = await roomRepo.findByRoomCode(roomCode);
@@ -1166,18 +1288,104 @@ const closeRoom = async (roomCode, userId) => {
   return room;
 };
 
+const sendChatMessage = async ({ sessionId, senderId, senderUsername, type, content }) => {
+  if (!['text', 'sticker'].includes(type)) {
+    throw buildError('Invalid chat type', 400);
+  }
+  const trimmed = String(content || '').trim();
+  if (!trimmed) {
+    throw buildError('Empty message', 400);
+  }
+  if (trimmed.length > 500) {
+    throw buildError('Message too long', 400);
+  }
+
+  const session = await sessionRepo.findById(sessionId);
+  if (!session) {
+    throw buildError('Session not found', 404);
+  }
+  if (session.gameType !== 'ONLINE') {
+    throw buildError('Chat is only available for ONLINE sessions', 400);
+  }
+  if (session.status !== 'PLAYING') {
+    throw buildError('Session is not active', 400);
+  }
+
+  const participants = [
+    session.player1Id ? String(session.player1Id) : null,
+    session.player2Id ? String(session.player2Id) : null,
+  ].filter(Boolean);
+  if (!participants.includes(String(senderId))) {
+    throw buildError('Not a participant of this session', 403);
+  }
+
+  // Snapshot username server-side (don't trust client) for replay consistency
+  let resolvedUsername = String(senderUsername || '').trim();
+  if (!resolvedUsername) {
+    try {
+      const user = await authRepository.findUserById(String(senderId));
+      resolvedUsername = user?.username || '';
+    } catch (e) {
+      resolvedUsername = '';
+    }
+  }
+
+  const message = {
+    senderId,
+    senderUsername: resolvedUsername,
+    type,
+    content: trimmed,
+    timestamp: new Date(),
+  };
+
+  await sessionRepo.appendChatMessage(sessionId, message);
+
+  const payload = {
+    sessionId: String(sessionId),
+    senderId: String(senderId),
+    senderUsername: resolvedUsername,
+    type: message.type,
+    content: message.content,
+    timestamp: message.timestamp,
+  };
+
+  const io = getIO();
+  if (session.roomCode) {
+    io.to(session.roomCode).emit('chat_message', payload);
+  }
+  io.to(`session:${sessionId}`).emit('chat_message', payload);
+
+  return message;
+};
+
+const getChatHistory = async (sessionId) => {
+  const session = await sessionRepo.findById(sessionId);
+  if (!session) {
+    throw buildError('Session not found', 404);
+  }
+  return sessionRepo.getChatHistory(sessionId);
+};
+
 module.exports = {
   createRoom,
   joinRoom,
   startRoom,
   makeMove,
   getRoom,
+  getSessionById,
   getSessionByRoom,
   playAgain,
   closeRoom,
   closeRoomOnAllDisconnected,
+  scheduleRoomCleanup,
+  cancelRoomCleanup,
+  scheduleSessionCleanup,
+  cancelSessionCleanup,
   listWaitingRooms,
   listArenaRooms,
+  listMyDuelingEntries,
   cleanupExpiredWaitingRooms,
   cleanupStaleDuelingRooms,
+  sendChatMessage,
+  getChatHistory,
 };

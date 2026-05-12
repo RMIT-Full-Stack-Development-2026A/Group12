@@ -100,6 +100,32 @@ const MoveSchema = new mongoose.Schema({
   timestamp: Date
 }, { _id: false });
 
+const ChatMessageSchema = new mongoose.Schema({
+  senderId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null
+  },
+  senderUsername: {
+    type: String,
+    default: ''
+  },
+  type: {
+    type: String,
+    enum: ['text', 'sticker'],
+    required: true
+  },
+  content: {
+    type: String,
+    required: true,
+    maxlength: 500
+  },
+  timestamp: {
+    type: Date,
+    default: Date.now
+  }
+}, { _id: false });
+
 const GameSessionSchema = new mongoose.Schema({
   roomId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -173,6 +199,11 @@ const GameSessionSchema = new mongoose.Schema({
 
   moves: {
     type: [MoveSchema],
+    default: []
+  },
+
+  chat: {
+    type: [ChatMessageSchema],
     default: []
   },
 

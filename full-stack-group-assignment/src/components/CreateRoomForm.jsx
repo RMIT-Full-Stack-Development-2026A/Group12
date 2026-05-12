@@ -7,10 +7,10 @@ import CurrentUserCard from './room/CurrentUserCard';
 import useGameDraft from '../hooks/useGameDraft';
 import useRoomActions from '../hooks/useRoomActions';
 import useRoomSocket from '../hooks/useRoomSocket';
-import { getSessionByRoom } from '../services/roomService';
+import { getSessionByRoom, getRoom, getSessionById } from '../services/roomService';
 import { MARKERS } from '../constants/gameOptions';
 
-function CreateRoomForm({ currentUser, onRequireLogin, initialJoinCode, onInitialJoinCodeConsumed }) {
+function CreateRoomForm({ currentUser, onRequireLogin, initialJoinCode, onInitialJoinCodeConsumed, resumeEntry, onResumeEntryConsumed }) {
   const currentUserId = currentUser?._id || '';
   const currentUsername = currentUser?.username || '';
 
@@ -97,6 +97,58 @@ function CreateRoomForm({ currentUser, onRequireLogin, initialJoinCode, onInitia
       onInitialJoinCodeConsumed?.();
     }
   }, [initialJoinCode]);
+
+  useEffect(() => {
+    if (!resumeEntry) return;
+    onResumeEntryConsumed?.();
+
+    const { kind, roomCode: rc, sessionId: sid } = resumeEntry;
+
+    if (kind === 'ONLINE' && rc) {
+      getRoom(rc)
+        .then(async (roomRes) => {
+          const room = roomRes?.data || roomRes;
+          if (!room) return;
+
+          const myPlayer = (room.players || []).find(
+            (p) => String(p.userId?._id || p.userId) === String(currentUser?._id)
+          );
+          const myMarker = myPlayer?.mark || '';
+
+          let session = null;
+          if (room.status === 'PLAYING' && room.currentSessionId) {
+            try {
+              const sRes = await getSessionByRoom(rc);
+              session = sRes?.data || sRes;
+            } catch { /* ignore */ }
+          }
+
+          setGameMode('ONLINE');
+          if (myMarker) setMarker(myMarker);
+          setBoardSize(String(room.boardSize || ''));
+          setResultData({ data: { room, session } });
+          if (session) {
+            setShowBoard(true);
+          }
+        })
+        .catch((err) => setError(err.message || 'Failed to rejoin room'));
+    }
+
+    if ((kind === 'SINGLE' || kind === 'LOCAL') && sid) {
+      getSessionById(sid)
+        .then((sessionRes) => {
+          const session = sessionRes?.data || sessionRes;
+          if (!session) return;
+
+          setGameMode(kind);
+          setMarker(session.player1Marker || '');
+          setBoardSize(String(session.boardSize || ''));
+          setResultData({ data: { session } });
+          setShowBoard(true);
+        })
+        .catch((err) => setError(err.message || 'Failed to rejoin session'));
+    }
+  }, [resumeEntry]);
 
   const handleCopyLink = async () => {
     if (!roomLink) return;

@@ -1,6 +1,6 @@
 import CreateRoomForm from '../components/CreateRoomForm'
 
-function CreateRoomPage({ currentUser, onRequireLogin, initialJoinCode, onInitialJoinCodeConsumed }) {
+function CreateRoomPage({ currentUser, onRequireLogin, initialJoinCode, onInitialJoinCodeConsumed, resumeEntry, onResumeEntryConsumed }) {
   return (
     <div style={styles.page}>
       <CreateRoomForm
@@ -8,6 +8,8 @@ function CreateRoomPage({ currentUser, onRequireLogin, initialJoinCode, onInitia
         onRequireLogin={onRequireLogin}
         initialJoinCode={initialJoinCode}
         onInitialJoinCodeConsumed={onInitialJoinCodeConsumed}
+        resumeEntry={resumeEntry}
+        onResumeEntryConsumed={onResumeEntryConsumed}
       />
     </div>
   )

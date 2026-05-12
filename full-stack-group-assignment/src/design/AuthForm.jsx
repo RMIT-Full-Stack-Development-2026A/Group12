@@ -50,11 +50,11 @@ function AuthForm({ onAuthSuccess, onClose }) {
       return
     }
 
-    localStorage.setItem(TOKEN_STORAGE_KEY, token)
+    sessionStorage.setItem(TOKEN_STORAGE_KEY, token)
   }
 
   function getAuthorizationHeader() {
-    const token = localStorage.getItem(TOKEN_STORAGE_KEY)
+    const token = sessionStorage.getItem(TOKEN_STORAGE_KEY)
     return token ? { Authorization: `Bearer ${token}` } : {}
   }
 

@@ -56,3 +56,13 @@ export const closeRoom = async ({ roomCode, userId }) => {
   const res = await apiClient.post(`${ROOMS}/${roomCode}/close`, { userId });
   return res.data;
 };
+
+export const getMyRooms = async () => {
+  const res = await apiClient.get(`${ROOMS}/my-rooms`);
+  return res.data;
+};
+
+export const getSessionById = async (sessionId) => {
+  const res = await apiClient.get(`${ROOMS}/session/${sessionId}`);
+  return res.data;
+};
