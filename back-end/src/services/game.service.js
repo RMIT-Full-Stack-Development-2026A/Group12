@@ -803,6 +803,14 @@ const joinRoom = async ({ userId, roomCode, marker, markerColor }) => {
   const displayMarker = marker;
   const resolvedMarkerColor = normalizeMarkerColor(markerColor, 1);
 
+  // If player 2 chooses the same marker as the host, they must use a different color
+  const hostDisplayMarker = room.players[0]?.displayMarker;
+  const hostMarkerColor = room.players[0]?.markerColor;
+  if (String(displayMarker).trim() === String(hostDisplayMarker).trim() && 
+      String(resolvedMarkerColor) === String(hostMarkerColor)) {
+    throw buildError('You must select a different marker color from the host.', 400);
+  }
+
   room.players.push({
     userId,
     mark: internalMarker,

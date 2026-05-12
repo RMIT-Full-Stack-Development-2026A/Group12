@@ -9,7 +9,7 @@ import useRoomActions from '../hooks/useRoomActions';
 import useRoomSocket from '../hooks/useRoomSocket';
 import { getSessionByRoom } from '../services/roomService';
 
-function CreateRoomForm({ currentUser, onRequireLogin, onExitToMenu, initialJoinCode, onInitialJoinCodeConsumed }) {
+function CreateRoomForm({ currentUser, onRequireLogin, onExitToMenu, initialJoinCode, onInitialJoinCodeConsumed, onGameStatusChange }) {
   const currentUserId = currentUser?._id || '';
   const currentUsername = currentUser?.username || '';
   const [roomClosedMessage, setRoomClosedMessage] = useState('');
@@ -108,6 +108,10 @@ function CreateRoomForm({ currentUser, onRequireLogin, onExitToMenu, initialJoin
       setRoomClosedMessage('');
     }
   }, [showBoard]);
+
+  useEffect(() => {
+    onGameStatusChange?.(showBoard);
+  }, [showBoard, onGameStatusChange]);
 
   const handleCopyLink = async () => {
     if (!roomLink) return;

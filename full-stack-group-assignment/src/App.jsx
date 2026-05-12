@@ -21,6 +21,7 @@ function App() {
   const [view, setView] = useState(VIEWS.HOME)
   const [isGateOpen, setIsGateOpen] = useState(false)
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [isGamePlaying, setIsGamePlaying] = useState(false)
 
   const isAuthed = Boolean(currentUser)
 
@@ -98,6 +99,13 @@ function App() {
     setIsMenuOpen((prev) => !prev)
   }
 
+  const handleGameStatusChange = (isPlaying) => {
+    setIsGamePlaying(isPlaying)
+    if (isPlaying) {
+      setIsMenuOpen(false)
+    }
+  }
+
   const avatarSrc = toAssetUrl(currentUser?.avatarUrl)
   const displayName = currentUser?.username || 'Anonymous'
 
@@ -109,25 +117,31 @@ function App() {
 
       <nav style={styles.navbar}>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <button type="button" style={styles.navBtn} onClick={goHome}>
-            Home
-          </button>
-          <button type="button" style={styles.navBtn} onClick={goArena}>
-            Arena
-          </button>
+          {!isGamePlaying ? (
+            <>
+              <button type="button" style={styles.navBtn} onClick={goHome}>
+                Home
+              </button>
+              <button type="button" style={styles.navBtn} onClick={goArena}>
+                Arena
+              </button>
+            </>
+          ) : null}
         </div>
         <div style={styles.navRight}>
-          <button
-            type="button"
-            style={styles.menuBtn}
-            onClick={toggleMenu}
-            aria-label="Open menu"
-            aria-expanded={isMenuOpen}
-          >
-            <span style={styles.menuIcon}>☰</span>
-          </button>
+          {!isGamePlaying && (
+            <button
+              type="button"
+              style={styles.menuBtn}
+              onClick={toggleMenu}
+              aria-label="Open menu"
+              aria-expanded={isMenuOpen}
+            >
+              <span style={styles.menuIcon}>☰</span>
+            </button>
+          )}
 
-          {isMenuOpen ? (
+          {isMenuOpen && !isGamePlaying ? (
             <div style={styles.menuPanel}>
               <div style={styles.menuUserBlock}>
                 <div style={styles.avatarWrap}>
@@ -183,6 +197,7 @@ function App() {
             onExitToMenu={goHome}
             initialJoinCode={arenaJoinCode}
             onInitialJoinCodeConsumed={() => setArenaJoinCode('')}
+            onGameStatusChange={handleGameStatusChange}
           />
         ) : null}
 
