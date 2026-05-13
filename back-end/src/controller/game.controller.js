@@ -134,7 +134,8 @@ const playAgainController = async (req, res) => {
   try {
     const result = await gameService.playAgain({
       userId: req.body.userId,
-      roomCode: req.params.roomCode
+      roomCode: req.params.roomCode,
+      starterMarker: req.body.starterMarker
     });
 
     return res.status(200).json({

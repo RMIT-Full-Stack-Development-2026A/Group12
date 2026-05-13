@@ -89,6 +89,8 @@ function OnlineRoomLobby({
   nextStarterRole,
   setNextStarterRole,
   isGameOver,
+  onPlayAgain,
+  playAgainLoading,
   styles,
 }) {
   const hostEntry = roomData?.players?.[0];
@@ -176,14 +178,14 @@ function OnlineRoomLobby({
       {error && <p style={styles.error}>{error}</p>}
       {infoMessage && <p style={styles.info}>{infoMessage}</p>}
 
-      {isHost && !isGameOver ? (
+      {isHost ? (
         <div style={styles.row}>
           <div style={styles.labelBox}>Play at :</div>
           <select
             value={nextStarterRole}
             onChange={(e) => setNextStarterRole(e.target.value)}
             style={styles.select}
-            disabled={!hasTwoPlayers || starting}
+            disabled={!hasTwoPlayers || starting || playAgainLoading}
           >
             <option value="PLAYER1">Turn 1</option>
             <option value="PLAYER2">Turn 2</option>
@@ -206,25 +208,48 @@ function OnlineRoomLobby({
         </button>
       ) : isHost && isGameOver ? (
         <>
-          <p style={styles.waitingText}>Game finished. Close the room to return to the main menu.</p>
-          <button
-            type="button"
-            onClick={onCloseRoom}
-            disabled={closing}
-            style={{
-              marginTop: 12,
-              padding: '8px 20px',
-              background: '#fee2e2',
-              color: '#b91c1c',
-              border: '1px solid #fca5a5',
-              borderRadius: 6,
-              cursor: closing ? 'not-allowed' : 'pointer',
-              fontWeight: 600,
-              fontSize: 14,
-            }}
-          >
-            {closing ? 'Closing...' : 'Close Room'}
-          </button>
+          <div style={{
+            display: 'flex',
+            gap: 12,
+            justifyContent: 'center',
+            marginTop: 12,
+            flexWrap: 'wrap',
+          }}>
+            <button
+              type="button"
+              onClick={onPlayAgain}
+              disabled={playAgainLoading}
+              style={{
+                padding: '10px 24px',
+                background: '#f0f9ff',
+                color: '#0369a1',
+                border: '1px solid #7dd3fc',
+                borderRadius: 6,
+                cursor: playAgainLoading ? 'not-allowed' : 'pointer',
+                fontWeight: 600,
+                fontSize: 14,
+              }}
+            >
+              {playAgainLoading ? 'Waiting...' : 'Play Again'}
+            </button>
+            <button
+              type="button"
+              onClick={onCloseRoom}
+              disabled={closing}
+              style={{
+                padding: '10px 24px',
+                background: '#fee2e2',
+                color: '#b91c1c',
+                border: '1px solid #fca5a5',
+                borderRadius: 6,
+                cursor: closing ? 'not-allowed' : 'pointer',
+                fontWeight: 600,
+                fontSize: 14,
+              }}
+            >
+              {closing ? 'Closing...' : 'Close Room'}
+            </button>
+          </div>
         </>
       ) : (
         <p style={styles.waitingText}>Waiting for host to start</p>

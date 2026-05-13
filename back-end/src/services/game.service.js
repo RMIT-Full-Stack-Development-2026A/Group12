@@ -1045,7 +1045,7 @@ const getSessionByRoom = async (roomCode) => {
   return session;
 };
 
-const playAgain = async ({ userId, roomCode }) => {
+const playAgain = async ({ userId, roomCode, starterMarker }) => {
   const room = await roomRepo.findByRoomCode(roomCode);
 
   if (!room) {
@@ -1079,36 +1079,18 @@ const playAgain = async ({ userId, roomCode }) => {
   }
 
   if (!currentSession.endTime) {
-    throw buildError('Current session is still playing', 400);
-  }
-
-  normalizeReplayRequests(room);
-
-  const alreadyRequested = room.replayRequests.some(
-    (requestUserId) => String(requestUserId) === String(userId)
-  );
-
-  if (!alreadyRequested) {
-    room.replayRequests.push(userId);
-    await roomRepo.save(room);
-  }
-
-  const uniqueReplayRequestIds = [...new Set(room.replayRequests.map(String))];
-
-  if (uniqueReplayRequestIds.length < 2) {
-    const populatedRoomWaiting = await roomRepo.findByRoomCodeWithPlayers(room.roomCode);
-    emitRoomUpdated(room.roomCode, populatedRoomWaiting.toObject());
-
+    const populatedRoomActive = await roomRepo.findByRoomCodeWithPlayers(room.roomCode);
     return {
-      message: 'Replay request recorded. Waiting for the other player.',
+      message: 'Game already restarted',
       data: {
-        room: populatedRoomWaiting,
-        waitingForOtherPlayer: true
+        room: populatedRoomActive,
+        session: currentSession,
+        waitingForOtherPlayer: false
       }
     };
   }
 
-  const session = await createOnlineSessionFromRoom(room);
+  const session = await createOnlineSessionFromRoom(room, starterMarker);
 
   resetTurnTimer(session);
   room.currentSessionId = session._id;

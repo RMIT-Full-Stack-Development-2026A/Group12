@@ -17,8 +17,8 @@ export const startRoom = async ({ roomCode, userId, starterMarker }) => {
   return res.data;
 };
 
-export const playAgain = async ({ roomCode, userId }) => {
-  const res = await apiClient.post(`${ROOMS}/${roomCode}/play-again`, { userId });
+export const playAgain = async ({ roomCode, userId, starterMarker }) => {
+  const res = await apiClient.post(`${ROOMS}/${roomCode}/play-again`, { userId, starterMarker });
   return res.data;
 };
 

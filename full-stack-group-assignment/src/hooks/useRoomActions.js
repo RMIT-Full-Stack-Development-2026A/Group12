@@ -209,7 +209,9 @@ export default function useRoomActions({
       setError('');
       setInfoMessage('');
 
-      const data = await playAgain({ roomCode, userId: currentUserId });
+      const onlineGuestMarker = resultData?.data?.room?.players?.[1]?.mark || marker;
+      const playAgainStarterMarker = nextStarterRole === 'PLAYER1' ? marker : onlineGuestMarker;
+      const data = await playAgain({ roomCode, userId: currentUserId, starterMarker: playAgainStarterMarker });
       const nextRoom = data?.data?.room || null;
       const nextSession = data?.data?.session || null;
       const waitingForOtherPlayer = data?.data?.waitingForOtherPlayer;
@@ -223,11 +225,11 @@ export default function useRoomActions({
         },
       }));
 
-      if (waitingForOtherPlayer) {
-        setShowBoard(false);
-        setInfoMessage(data.message || 'Waiting for the other player to confirm.');
-        return;
-      }
+      // if (waitingForOtherPlayer) {
+      //   setShowBoard(false);
+      //   setInfoMessage(data.message || 'Waiting for the other player to confirm.');
+      //   return;
+      // }
 
       if (nextSession) {
         setBoardSize(String(nextSession.boardSize || nextRoom?.boardSize || boardSize || ''));

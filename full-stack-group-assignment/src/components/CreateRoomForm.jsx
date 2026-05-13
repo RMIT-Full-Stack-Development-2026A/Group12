@@ -317,6 +317,8 @@ function CreateRoomForm({ currentUser, onRequireLogin, onExitToMenu, initialJoin
           nextStarterRole={nextStarterRole}
           setNextStarterRole={setNextStarterRole}
           isGameOver={isGameOver}
+          onPlayAgain={() => handlePlayAgain(roomCode)}
+          playAgainLoading={replaying}
           styles={styles}
         />
       )}
