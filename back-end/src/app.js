@@ -3,6 +3,7 @@ const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
 const userRouter = require('./modules/user/user.route');
+const adminRouter = require('./router/adminRouter');
 
 const app = express();
 
@@ -22,6 +23,7 @@ if (fs.existsSync(authRouterPath)) {
 }
 
 app.use('/api/user', userRouter);
+app.use('/api/admin', adminRouter);
 
 app.use((req, res) => {
   return res.status(404).json({

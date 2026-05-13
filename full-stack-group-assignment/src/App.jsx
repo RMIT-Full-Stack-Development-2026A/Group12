@@ -6,7 +6,8 @@ import HomePage from './pages/HomePage'
 import ProfilePage from './pages/ProfilePage'
 import WalletPage from './pages/WalletPage'
 import ArenaPage from './pages/ArenaPage'
-import { TOKEN_STORAGE_KEY } from './config/appConfig'
+import AdminDashboard from './pages/AdminDashboard'
+import { API_ORIGIN, TOKEN_STORAGE_KEY } from './config/appConfig'
 import FakeVNPay from './pages/FakeVNPay'
 import QRPayment from './pages/QRPayment'
 import FakeBank from './pages/FakeBank'
@@ -22,6 +23,7 @@ const VIEWS = {
   QR: 'qr',
   FAKE_BANK: 'fake_bank',
   ARENA: 'arena',
+  ADMIN: 'admin',
 }
 
 function App() {
@@ -39,6 +41,7 @@ function App() {
     if (view === VIEWS.PROFILE) return 'User Profile'
     if (view === VIEWS.WALLET) return 'Wallet & Subscription'
     if (view === VIEWS.AUTH) return 'Login / Register'
+    if (view === VIEWS.ADMIN) return 'Admin Dashboard'
     return 'Tic Tac Toe'
   }, [view])
 
@@ -77,6 +80,13 @@ function App() {
   function goArena() {
     setView(VIEWS.ARENA)
     setIsMenuOpen(false)
+  }
+
+  function goAdmin() {
+    requireAuth(() => {
+      setView(VIEWS.ADMIN)
+      setIsMenuOpen(false)
+    })
   }
 
   function handleJoinFromArena(roomCode) {
@@ -159,9 +169,16 @@ function App() {
         <button type="button" style={styles.navBtn} onClick={goHome}>
           Home
         </button>
-        <button type="button" style={styles.navBtn} onClick={goWallet}>
-          Wallet
-        </button>
+        {isAuthed ? (
+          <button type="button" style={styles.navBtn} onClick={goWallet}>
+            Wallet
+          </button>
+        ) : null}
+        {isAuthed && currentUser?.role === 'ADMIN' ? (
+          <button type="button" style={styles.navBtn} onClick={goAdmin}>
+            Admin Dashboard
+          </button>
+        ) : null}
         <div style={styles.navRight}>
           <button
             type="button"
@@ -193,6 +210,12 @@ function App() {
               <button type="button" style={styles.menuAction} onClick={goWallet}>
                 Wallet & Subscription
               </button>
+
+              {currentUser?.role === 'ADMIN' && (
+                <button type="button" style={styles.menuAction} onClick={goAdmin}>
+                  Admin Dashboard
+                </button>
+              )}
 
               <button
                 type="button"
@@ -248,6 +271,10 @@ function App() {
             currentUser={currentUser}
             onRequestLogin={openAuth}
           />
+        ) : null}
+
+        {view === VIEWS.ADMIN ? (
+          <AdminDashboard />
         ) : null}
 
         {view === VIEWS.FAKE_VNPAY ? (
