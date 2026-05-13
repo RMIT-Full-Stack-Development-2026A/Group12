@@ -157,6 +157,11 @@ function App() {
       setView(VIEWS.PROFILE)
       return
     }
+
+    if (pathname === '/admin') {
+      setView(VIEWS.ADMIN)
+      return
+    }
   }, [])
 
   return (

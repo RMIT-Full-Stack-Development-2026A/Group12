@@ -12,49 +12,65 @@ function startSubscriptionJob() {
     console.log('Running subscription cron job...');
 
     const now = new Date();
+    const batchSize = 100;
+    let skip = 0;
+    let hasMore = true;
 
-    const subs = await Subscription.find();
+    while (hasMore) {
+      // Process subscriptions in batches to avoid loading all into memory
+      const subs = await Subscription.find()
+        .lean()
+        .skip(skip)
+        .limit(batchSize);
 
-    for (const sub of subs) {
-      const user = await User.findById(sub.userId);
-      if (!user) continue;
-
-      const daysLeft = (sub.endDate - now) / (1000 * 60 * 60 * 24);
-
-      // Reminder before expiry
-      if (daysLeft <= 2 && daysLeft > 0) {
-        await sendSubscriptionEmail(
-          user.email,
-          `Your subscription expires in ${Math.ceil(daysLeft)} day(s)`
-        );
+      if (subs.length === 0) {
+        hasMore = false;
+        break;
       }
 
-      // Auto renew
-      if (sub.endDate <= now) {
-        const wallet = await Wallet.findOne({ userId: user._id });
+      for (const sub of subs) {
+        const user = await User.findById(sub.userId).lean();
+        if (!user) continue;
 
-        if (wallet && wallet.balance >= PRICE) {
-          wallet.balance -= PRICE;
-          await wallet.save();
+        const daysLeft = (sub.endDate - now) / (1000 * 60 * 60 * 24);
 
-          const newEnd = new Date();
-          newEnd.setMonth(newEnd.getMonth() + 1);
-
-          sub.startDate = new Date();
-          sub.endDate = newEnd;
-          await sub.save();
-
+        // Reminder before expiry
+        if (daysLeft <= 2 && daysLeft > 0) {
           await sendSubscriptionEmail(
             user.email,
-            `Subscription auto-renewed until ${newEnd}`
+            `Your subscription expires in ${Math.ceil(daysLeft)} day(s)`
           );
+        }
 
-        } else {
-          // Not enough money → downgrade
-          user.isPremium = false;
-          await user.save();
+        // Auto renew
+        if (sub.endDate <= now) {
+          const wallet = await Wallet.findOne({ userId: user._id });
+
+          if (wallet && wallet.balance >= PRICE) {
+            wallet.balance -= PRICE;
+            await wallet.save();
+
+            const newEnd = new Date();
+            newEnd.setMonth(newEnd.getMonth() + 1);
+
+            await Subscription.findByIdAndUpdate(sub._id, {
+              startDate: new Date(),
+              endDate: newEnd
+            });
+
+            await sendSubscriptionEmail(
+              user.email,
+              `Subscription auto-renewed until ${newEnd}`
+            );
+
+          } else {
+            // Not enough money → downgrade
+            await User.findByIdAndUpdate(user._id, { isPremium: false });
+          }
         }
       }
+
+      skip += batchSize;
     }
   });
 }

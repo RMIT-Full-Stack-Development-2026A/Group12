@@ -5,10 +5,24 @@ const Transaction = require('../models/transaction');
 // Get all users
 const getAllUsers = async (req, res) => {
   try {
-    const users = await User.find().select('-passwordHash');
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = (page - 1) * limit;
+
+    const [users, total] = await Promise.all([
+      User.find().select('-passwordHash').skip(skip).limit(limit),
+      User.countDocuments()
+    ]);
+
     res.status(200).json({
       success: true,
       data: users,
+      pagination: {
+        total,
+        page,
+        limit,
+        pages: Math.ceil(total / limit)
+      }
     });
   } catch (error) {
     res.status(500).json({
@@ -143,16 +157,35 @@ const unsuspendUser = async (req, res) => {
 // Get all active subscriptions
 const getActiveSubscriptions = async (req, res) => {
   try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = (page - 1) * limit;
+
     const now = new Date();
-    const subscriptions = await Subscription.find({
-      isPremium: true,
-      endDate: { $gt: now },
-    }).populate('userId', 'username email');
+    
+    const [subscriptions, total] = await Promise.all([
+      Subscription.find({
+        isPremium: true,
+        endDate: { $gt: now },
+      })
+        .populate('userId', 'username email')
+        .skip(skip)
+        .limit(limit),
+      Subscription.countDocuments({
+        isPremium: true,
+        endDate: { $gt: now },
+      })
+    ]);
     
     res.status(200).json({
       success: true,
-      total: subscriptions.length,
       data: subscriptions,
+      pagination: {
+        total,
+        page,
+        limit,
+        pages: Math.ceil(total / limit)
+      }
     });
   } catch (error) {
     res.status(500).json({
@@ -166,13 +199,28 @@ const getActiveSubscriptions = async (req, res) => {
 // Get all transactions
 const getAllTransactions = async (req, res) => {
   try {
-    const transactions = await Transaction.find()
-      .populate('userId', 'username email')
-      .sort({ createdAt: -1 });
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = (page - 1) * limit;
+
+    const [transactions, total] = await Promise.all([
+      Transaction.find()
+        .populate('userId', 'username email')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit),
+      Transaction.countDocuments()
+    ]);
     
     res.status(200).json({
       success: true,
       data: transactions,
+      pagination: {
+        total,
+        page,
+        limit,
+        pages: Math.ceil(total / limit)
+      }
     });
   } catch (error) {
     res.status(500).json({

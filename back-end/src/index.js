@@ -18,6 +18,7 @@ const paymentRoutes = require('./router/payment.route');
 const { startPaymentCleanupJob } = require('./cron/payment.cron');
 const { game: gameService } = require('./services');
 const transactionRoutes = require('./router/transaction.route');
+const adminRoutes = require('./router/adminRouter');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -40,6 +41,7 @@ app.use('/api/wallet', walletRoutes);
 app.use('/api/subscription', subRoutes);
 app.use('/api/payment', paymentRoutes);
 app.use('/api/transaction', transactionRoutes);
+app.use('/api/admin', adminRoutes);
 
 function startServer() {
   const server = http.createServer(app);
@@ -53,6 +55,10 @@ function startServer() {
 
   initSocket(io, { onAllDisconnected: gameService.closeRoomOnAllDisconnected });
 
+  startSubscriptionJob();
+
+  startPaymentCleanupJob();
+
   server.listen(PORT, () => {
     console.log(`Server started on port ${PORT}`);
   });
@@ -64,10 +70,6 @@ connectToDatabase()
     console.error('Unable to start server:', error.message);
     process.exit(1);
   });
-
-startSubscriptionJob();
-
-startPaymentCleanupJob();
 
 app.use(
   '/',
