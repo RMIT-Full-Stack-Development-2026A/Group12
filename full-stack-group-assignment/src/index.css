@@ -113,6 +113,27 @@ code {
   100% { transform: scale(1); opacity: 1; }
 }
 
+@keyframes chatSlideIn {
+  0%   { transform: translateX(40px); opacity: 0; }
+  100% { transform: translateX(0); opacity: 1; }
+}
+
+/* When the chat panel (Portal-rendered) is open, shrink body content from the right
+   so the white card + page background shift together as a single block.
+   On mobile the chat takes a full-screen overlay so we skip the shift. */
+body.chat-open {
+  padding-right: 360px;
+  transition: padding-right 0.3s ease;
+}
+@media (max-width: 900px) {
+  body.chat-open { padding-right: 0; }
+}
+
+@keyframes popupFadeIn {
+  0%   { transform: translateX(-50%) translateY(6px); opacity: 0; }
+  100% { transform: translateX(-50%) translateY(0); opacity: 1; }
+}
+
 /* Responsive layout for ProfilePage */
 .profile-grid {
   grid-template-columns: minmax(240px, 1fr) minmax(0, 3fr);

@@ -1,7 +1,8 @@
-const { ALLOWED_MARKERS } = require('../constants/enums');
+const { ALLOWED_MARKERS, MARKER_COLORS } = require('../constants/enums');
 
-const validateJoinRoomDto = ({ userId, marker, roomCode }) => {
+const validateJoinRoomDto = ({ userId, marker, roomCode, markerColor }) => {
   const normalizedMarker = String(marker || '').trim();
+  const normalizedMarkerColor = String(markerColor || '#000000').trim() || '#000000';
 
   if (!userId) {
     return { error: 'userId is required' };
@@ -15,11 +16,16 @@ const validateJoinRoomDto = ({ userId, marker, roomCode }) => {
     return { error: `Marker must be one of: ${ALLOWED_MARKERS.join(', ')}` };
   }
 
+  if (normalizedMarkerColor && !MARKER_COLORS.includes(normalizedMarkerColor)) {
+    return { error: `markerColor must be one of: ${MARKER_COLORS.join(', ')}` };
+  }
+
   return {
     value: {
       userId,
       roomCode,
-      marker: normalizedMarker
+      marker: normalizedMarker,
+      markerColor: normalizedMarkerColor
     }
   };
 };

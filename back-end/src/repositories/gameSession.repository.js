@@ -58,6 +58,37 @@ const abortSession = (sessionId) => {
   );
 };
 
+const findActiveSoloByUserId = (userId) => {
+  return GameSession.find({
+    player1Id: userId,
+    gameType: { $in: ['SINGLE', 'LOCAL'] },
+    status: { $in: ['WAITING', 'PLAYING'] },
+    roomId: null,
+  }).sort({ updatedAt: -1 });
+};
+
+const findStaleOrphanSessions = (cutoffTime) => {
+  return GameSession.find({
+    gameType: { $in: ['SINGLE', 'LOCAL'] },
+    status: { $in: ['WAITING', 'PLAYING'] },
+    roomId: null,
+    updatedAt: { $lt: cutoffTime },
+  }).select('_id');
+};
+
+const appendChatMessage = (sessionId, message) => {
+  return GameSession.findByIdAndUpdate(
+    sessionId,
+    { $push: { chat: message } },
+    { new: true }
+  );
+};
+
+const getChatHistory = async (sessionId) => {
+  const doc = await GameSession.findById(sessionId).select('chat').lean();
+  return doc?.chat || [];
+};
+
 module.exports = {
   findById,
   create,
@@ -68,5 +99,9 @@ module.exports = {
   countByRoomId,
   finishSession,
   findStalePlayingSessions,
-  abortSession
+  abortSession,
+  findActiveSoloByUserId,
+  findStaleOrphanSessions,
+  appendChatMessage,
+  getChatHistory,
 };

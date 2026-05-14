@@ -1,6 +1,8 @@
 const { COUNTRY_LIST } = require('../constants/enums');
 
 const USERNAME_REGEX = /^[a-zA-Z0-9_-]+$/;
+// 1 @, domain has at least 1 dot, no spaces, under 255 chars
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function isNonEmpty(value) {
   return typeof value === 'string' ? value.trim().length > 0 : Boolean(value);
@@ -21,15 +23,29 @@ function validateRegister(req, res, next) {
     });
   }
 
+  const normalizedEmail = String(email).trim();
+  if (normalizedEmail.length > 254 || !EMAIL_REGEX.test(normalizedEmail)) {
+    return res.status(400).json({
+      message: 'email must be a valid format (e.g. user@example.com), no spaces, under 255 characters'
+    });
+  }
+
   if (!COUNTRY_LIST.includes(country)) {
     return res.status(400).json({
       message: 'country must be selected from the allowed country list'
     });
   }
 
-  if (typeof password !== 'string' || password.length < 6) {
+  const PASSWORD_SPECIAL = /[$#@!]/;
+  if (
+    typeof password !== 'string' ||
+    password.length < 8 ||
+    !/[A-Z]/.test(password) ||
+    !/[0-9]/.test(password) ||
+    !PASSWORD_SPECIAL.test(password)
+  ) {
     return res.status(400).json({
-      message: 'password must be at least 6 characters'
+      message: 'Password must be at least 8 characters and include an uppercase letter, a number, and a special character ($, #, @, !)'
     });
   }
 

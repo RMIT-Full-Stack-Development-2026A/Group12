@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { createGame, joinRoom, startRoom, playAgain, closeRoom } from '../services/roomService';
-import { MARKERS } from '../constants/gameOptions';
+import { DEFAULT_MARKER_COLOR, MARKERS } from '../constants/gameOptions';
 
 function extractRoomCode(value) {
   const trimmed = (value || '').trim();
@@ -33,6 +33,7 @@ export default function useRoomActions({
   const [showBoard, setShowBoard] = useState(false);
   const [joinRoomCode, setJoinRoomCode] = useState('');
   const [joinMarker, setJoinMarker] = useState('');
+  const [joinMarkerColor, setJoinMarkerColor] = useState(DEFAULT_MARKER_COLOR);
 
   function getStarterMarker(onlineGuestMarker) {
     if (nextStarterRole === 'PLAYER1') return marker;
@@ -77,14 +78,13 @@ export default function useRoomActions({
         boardSize: Number(boardSize),
         aiLevel,
         starterMarker: getStarterMarker(''),
+        markerColor: gameMode === 'ONLINE' ? DEFAULT_MARKER_COLOR : undefined,
       });
 
       setResultData(data);
 
       if (gameMode === 'LOCAL' || gameMode === 'SINGLE') {
         setShowBoard(true);
-      } else {
-        setInfoMessage('Room created. Share the link and wait for player 2.');
       }
     } catch (err) {
       setError(err.message || 'Create game failed');
@@ -108,14 +108,23 @@ export default function useRoomActions({
       setError('');
       setInfoMessage('');
 
-      const data = await joinRoom({ roomCode: parsedRoomCode, userId: currentUserId, marker: joinMarker });
+      const data = await joinRoom({
+        roomCode: parsedRoomCode,
+        userId: currentUserId,
+        marker: joinMarker,
+        markerColor: joinMarkerColor,
+      });
+
+      const joinedPlayer = data?.data?.players?.find(
+        (player) => String(player?.userId?._id || player?.userId) === String(currentUserId)
+      ) || data?.data?.players?.[1] || null;
 
       setResultData((prev) => ({
         ...prev,
         data: { ...(prev?.data || {}), room: data.data, session: null },
       }));
 
-      setMarker(joinMarker);
+      setMarker(joinedPlayer?.mark || joinMarker);
       setGameMode('ONLINE');
       setBoardSize(String(data.data?.boardSize || ''));
       setShowBoard(false);
@@ -179,6 +188,7 @@ export default function useRoomActions({
           boardSize: Number(boardSize),
           aiLevel,
           starterMarker: getStarterMarker(''),
+          markerColor: gameMode === 'ONLINE' ? DEFAULT_MARKER_COLOR : undefined,
         });
 
         setResultData(data);
@@ -199,7 +209,9 @@ export default function useRoomActions({
       setError('');
       setInfoMessage('');
 
-      const data = await playAgain({ roomCode, userId: currentUserId });
+      const onlineGuestMarker = resultData?.data?.room?.players?.[1]?.mark || marker;
+      const playAgainStarterMarker = nextStarterRole === 'PLAYER1' ? marker : onlineGuestMarker;
+      const data = await playAgain({ roomCode, userId: currentUserId, starterMarker: playAgainStarterMarker });
       const nextRoom = data?.data?.room || null;
       const nextSession = data?.data?.session || null;
       const waitingForOtherPlayer = data?.data?.waitingForOtherPlayer;
@@ -213,11 +225,11 @@ export default function useRoomActions({
         },
       }));
 
-      if (waitingForOtherPlayer) {
-        setShowBoard(false);
-        setInfoMessage(data.message || 'Waiting for the other player to confirm.');
-        return;
-      }
+      // if (waitingForOtherPlayer) {
+      //   setShowBoard(false);
+      //   setInfoMessage(data.message || 'Waiting for the other player to confirm.');
+      //   return;
+      // }
 
       if (nextSession) {
         setBoardSize(String(nextSession.boardSize || nextRoom?.boardSize || boardSize || ''));
@@ -242,6 +254,7 @@ export default function useRoomActions({
     setLoading(false);
     setJoinRoomCode('');
     setJoinMarker('');
+    setJoinMarkerColor(DEFAULT_MARKER_COLOR);
     setGameMode('');
     setMarker('');
     setBoardSize('');
@@ -275,6 +288,7 @@ export default function useRoomActions({
     showBoard, setShowBoard,
     joinRoomCode, setJoinRoomCode,
     joinMarker, setJoinMarker,
+    joinMarkerColor, setJoinMarkerColor,
     handlePlay,
     handleJoinRoom,
     handleStartRoom,

@@ -1,156 +1,170 @@
-import { useEffect, useMemo, useState } from 'react';
-import { createGame, getSessionByRoom, joinRoom, startRoom } from '../services/roomService';
-import socket from '../socket';
+import { useEffect, useState } from 'react';
 import GameBoard from '../components/GameBoard';
+import CreateGamePanel from './room/CreateGamePanel';
+import JoinRoomPanel from './room/JoinRoomPanel';
+import OnlineRoomLobby from './room/OnlineRoomLobby';
+import CurrentUserCard from './room/CurrentUserCard';
+import useGameDraft from '../hooks/useGameDraft';
+import useRoomActions from '../hooks/useRoomActions';
+import useRoomSocket from '../hooks/useRoomSocket';
+import { getSessionByRoom, getRoom, getSessionById } from '../services/roomService';
+import { MARKERS } from '../constants/gameOptions';
 
-import { BOARD_SIZES, MARKERS } from '../constants/gameOptions'
-
-function CreateRoomForm({ currentUser }) {
-  const [gameMode, setGameMode] = useState('');
-  const [marker, setMarker] = useState('');
-  const [boardSize, setBoardSize] = useState('');
-  const [aiLevel, setAiLevel] = useState('easy');
-
-  const [loading, setLoading] = useState(false);
-  const [joining, setJoining] = useState(false);
-  const [starting, setStarting] = useState(false);
-  const [error, setError] = useState('');
-  const [resultData, setResultData] = useState(null);
-  const [showBoard, setShowBoard] = useState(false);
-
-  const [joinRoomCode, setJoinRoomCode] = useState('');
-  const [joinMarker, setJoinMarker] = useState('');
-
+function CreateRoomForm({ currentUser, onRequireLogin, onExitToMenu, initialJoinCode, onInitialJoinCodeConsumed, resumeEntry, onResumeEntryConsumed, onGameStatusChange }) {
   const currentUserId = currentUser?._id || '';
   const currentUsername = currentUser?.username || '';
+  const [roomClosedMessage, setRoomClosedMessage] = useState('');
 
-  const roomCode =
-    resultData?.data?.room?.roomCode || resultData?.data?.roomCode || '';
+  const {
+    gameMode, setGameMode,
+    marker, setMarker,
+    localPlayer2Marker, setLocalPlayer2Marker,
+    localPlayer2Name, setLocalPlayer2Name,
+    boardSize, setBoardSize,
+    aiLevel, setAiLevel,
+    nextStarterRole, setNextStarterRole,
+    selectedStyleId, setSelectedStyleId,
+  } = useGameDraft();
 
-  const roomLink = roomCode
-    ? `${window.location.origin}/join-room/${roomCode}`
-    : '';
+  const {
+    loading, joining, starting, replaying, closing,
+    error, setError,
+    infoMessage, setInfoMessage,
+    resultData, setResultData,
+    showBoard, setShowBoard,
+    joinRoomCode, setJoinRoomCode,
+    joinMarker, setJoinMarker,
+    joinMarkerColor, setJoinMarkerColor,
+    handlePlay,
+    handleJoinRoom,
+    handleStartRoom,
+    handlePlayAgain,
+    handleCloseRoom,
+    resetToCreateGame,
+    backToRoomLobby,
+  } = useRoomActions({
+    gameMode, setGameMode,
+    marker, setMarker,
+    boardSize, setBoardSize,
+    aiLevel,
+    nextStarterRole,
+    localPlayer2Marker,
+    currentUserId,
+    onRequireLogin,
+  });
 
-  const isOnlineWaiting = gameMode === 'ONLINE' && !!roomCode && !showBoard;
+  const roomCode = resultData?.data?.room?.roomCode || resultData?.data?.roomCode || '';
+  const roomLink = roomCode ? `${window.location.origin}/join-room/${roomCode}` : '';
   const roomData = resultData?.data?.room || null;
+  const sessionData = resultData?.data?.session || null;
+  const sessionId = resultData?.data?.session?._id || resultData?.data?._id || '';
 
   const getPlayerUserId = (player) => {
     if (!player?.userId) return '';
-    if (typeof player.userId === 'string') return player.userId;
-    return player.userId._id || '';
+    return typeof player.userId === 'string' ? player.userId : player.userId._id || '';
   };
+  const hostUserId = roomData?.hostId
+    ? (typeof roomData.hostId === 'string' ? roomData.hostId : roomData.hostId._id || '')
+    : getPlayerUserId(roomData?.players?.[0]);
 
-  const hostUserId = getPlayerUserId(roomData?.players?.[0]);
   const isHost = !!hostUserId && String(currentUserId) === String(hostUserId);
   const hasTwoPlayers = (roomData?.players?.length || 0) >= 2;
+  const isOnlineWaiting = gameMode === 'ONLINE' && !!roomCode && !!roomData && !showBoard;
+  const onlineGuestMarker = roomData?.players?.[1]?.mark || sessionData?.player2Marker || '';
+  const isGameOver = ['WIN', 'DRAW', 'FINISHED'].includes(sessionData?.status || '');
+  const isHostRoom = !!hostUserId && String(currentUserId) === String(hostUserId);
 
-  const usedMarkers = useMemo(() => {
-    const players = resultData?.data?.room?.players || [];
-    return players.map((player) => player.mark);
-  }, [resultData]);
+  useRoomSocket({
+    roomCode,
+    sessionId,
+    isHost,
+    setResultData,
+    setShowBoard,
+    setError,
+    setInfoMessage,
+    onFetchSession: getSessionByRoom,
+    onRoomClosed: (msg) => {
+      if (isHostRoom) {
+        resetToCreateGame();
+        onExitToMenu?.();
+        return;
+      }
 
-  const availableJoinMarkers = MARKERS.filter((item) => !usedMarkers.includes(item));
-
-  const extractRoomCode = (value) => {
-    const trimmed = value.trim();
-
-    if (!trimmed) return '';
-
-    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
-      const parts = trimmed.split('/').filter(Boolean);
-      return parts[parts.length - 1] || '';
-    }
-
-    return trimmed;
-  };
+      setRoomClosedMessage(msg || 'This room is closed, return to main menu.');
+      setShowBoard(false);
+      setError('');
+      setInfoMessage('');
+    },
+  });
 
   useEffect(() => {
-  if (!roomCode) return;
+    if (initialJoinCode) {
+      setJoinRoomCode(initialJoinCode);
+      onInitialJoinCodeConsumed?.();
+    }
+  }, [initialJoinCode]);
 
-  socket.emit('join_room_channel', roomCode);
+  useEffect(() => {
+    if (!resumeEntry) return;
+    onResumeEntryConsumed?.();
 
-  const handleRoomUpdated = (updatedRoom) => {
-    setResultData((prev) => ({
-      ...prev,
-      data: {
-        ...(prev?.data || {}),
-        room: updatedRoom
-      }
-    }));
-  };
+    const { kind, roomCode: rc, sessionId: sid } = resumeEntry;
 
-  const handleRoomStarted = (startedRoom) => {
-    setResultData((prev) => ({
-      ...prev,
-      data: {
-        ...(prev?.data || {}),
-        room: startedRoom
-      }
-    }));
+    if (kind === 'ONLINE' && rc) {
+      getRoom(rc)
+        .then(async (roomRes) => {
+          const room = roomRes?.data || roomRes;
+          if (!room) return;
 
-    setShowBoard(true);
-  };
+          const myPlayer = (room.players || []).find(
+            (p) => String(p.userId?._id || p.userId) === String(currentUser?._id)
+          );
+          const myMarker = myPlayer?.mark || '';
 
-  const handleSessionUpdated = (updatedSession) => {
-    setResultData((prev) => ({
-      ...prev,
-      data: {
-        ...(prev?.data || {}),
-        session: updatedSession
-      }
-    }));
-  };
+          let session = null;
+          if (room.status === 'PLAYING' && room.currentSessionId) {
+            try {
+              const sRes = await getSessionByRoom(rc);
+              session = sRes?.data || sRes;
+            } catch { /* ignore */ }
+          }
 
-  socket.on('room_updated', handleRoomUpdated);
-  socket.on('room_started', handleRoomStarted);
-  socket.on('session_updated', handleSessionUpdated);
-
-  return () => {
-    socket.off('room_updated', handleRoomUpdated);
-    socket.off('room_started', handleRoomStarted);
-    socket.off('session_updated', handleSessionUpdated);
-    socket.emit('leave_room_channel', roomCode);
-  };
-}, [roomCode]);
-
-  const handlePlay = async (e) => {
-    e.preventDefault();
-
-    if (!currentUserId) {
-      setError('Cannot find current user ID. Please login again.');
-      return;
+          setGameMode('ONLINE');
+          if (myMarker) setMarker(myMarker);
+          setBoardSize(String(room.boardSize || ''));
+          setResultData({ data: { room, session } });
+          if (session) {
+            setShowBoard(true);
+          }
+        })
+        .catch((err) => setError(err.message || 'Failed to rejoin room'));
     }
 
-    if (!gameMode || !marker || !boardSize) {
-      setError('Please select game mode, marker and board size');
-      return;
+    if ((kind === 'SINGLE' || kind === 'LOCAL') && sid) {
+      getSessionById(sid)
+        .then((sessionRes) => {
+          const session = sessionRes?.data || sessionRes;
+          if (!session) return;
+
+          setGameMode(kind);
+          setMarker(session.player1Marker || '');
+          setBoardSize(String(session.boardSize || ''));
+          setResultData({ data: { session } });
+          setShowBoard(true);
+        })
+        .catch((err) => setError(err.message || 'Failed to rejoin session'));
     }
+  }, [resumeEntry]);
 
-    try {
-      setLoading(true);
-      setError('');
-      setResultData(null);
-      setShowBoard(false);
-
-      const data = await createGame({
-        userId: currentUserId,
-        gameMode,
-        marker,
-        boardSize: Number(boardSize),
-        aiLevel
-      });
-
-      setResultData(data);
-
-      if (gameMode === 'LOCAL' || gameMode === 'SINGLE') {
-        setShowBoard(true);
-      }
-    } catch (err) {
-      setError(err.message || 'Create game failed');
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+    if (showBoard) {
+      setRoomClosedMessage('');
     }
-  };
+  }, [showBoard]);
+
+  useEffect(() => {
+    onGameStatusChange?.(showBoard);
+  }, [showBoard, onGameStatusChange]);
 
   const handleCopyLink = async () => {
     if (!roomLink) return;
@@ -166,174 +180,52 @@ function CreateRoomForm({ currentUser }) {
 
   const handleShare = async () => {
     if (!roomLink) return;
-
     if (navigator.share) {
       try {
-        await navigator.share({
-          title: 'Join my Tic Tac Toe room',
-          text: 'Join my room',
-          url: roomLink
-        });
-      } catch (shareError) {
-        console.log(shareError);
-      }
+        await navigator.share({ title: 'Join my Tic Tac Toe room', text: 'Join my room', url: roomLink });
+      } catch { /* user cancelled */ }
     } else {
       await navigator.clipboard.writeText(roomLink);
       alert('Share is not supported. Link copied instead.');
     }
   };
 
-  const handleJoinRoom = async (codeOverride) => {
-    if (!currentUserId) {
-      setError('Cannot find current user ID. Please login again.');
-      return;
-    }
-
-    const parsedRoomCode = extractRoomCode(codeOverride || joinRoomCode);
-
-    if (!parsedRoomCode) {
-      setError('Please enter a room code or room link');
-      return;
-    }
-
-    if (!joinMarker) {
-      setError('Please select a marker to join');
-      return;
-    }
-
-    try {
-      setJoining(true);
-      setError('');
-
-      const data = await joinRoom({
-        roomCode: parsedRoomCode,
-        userId: currentUserId,
-        marker: joinMarker
-      });
-      const sessionRes = await getSessionByRoom(parsedRoomCode);
-      
-      setResultData((prev) => ({
-        ...prev,
-        data: {
-          ...(prev?.data || {}),
-          room: data.data,
-          session: sessionRes.data
-        }
-      }));
-      setMarker(joinMarker);
-      setGameMode('ONLINE');
-      setShowBoard(false);
-      alert(data.message || 'Joined room successfully');
-    } catch (err) {
-      setError(err.message || 'Join room failed');
-    } finally {
-      setJoining(false);
-    }
-  };
-
-  const handleStartRoom = async () => {
-    if (!roomCode) {
-      setError('Room code not found');
-      return;
-    }
-
-    if (!isHost) {
-      setError('Only host can start the game');
-      return;
-    }
-
-    try {
-      setStarting(true);
-      setError('');
-
-      const data = await startRoom({
-        roomCode,
-        userId: currentUserId
-      });
-
-      setResultData((prev) => ({
-        ...prev,
-        data: {
-          ...(prev?.data || {}),
-          room: data.data
-        }
-      }));
-
-      setShowBoard(true);
-      alert(data.message || 'Game started');
-    } catch (err) {
-      setError(err.message || 'Start room failed');
-    } finally {
-      setStarting(false);
-    }
-  };
-  const resetToCreateGame = () => {
-  setShowBoard(false);
-  setResultData(null);
-  setError('');
-  setJoining(false);
-  setStarting(false);
-  setLoading(false);
-  setJoinRoomCode('');
-  setJoinMarker('');
-  setGameMode('');
-  setMarker('');
-  setBoardSize('');
-  setAiLevel('easy');
-};
-
-const handlePlayAgain = async () => {
-  if (!gameMode || !marker || !boardSize || !currentUserId) {
-    resetToCreateGame();
-    return;
-  }
-
-  if (gameMode === 'ONLINE') {
-    resetToCreateGame();
-    return;
-  }
-
-  try {
-    setLoading(true);
-    setError('');
-    setShowBoard(false);
-
-    const data = await createGame({
-      userId: currentUserId,
-      gameMode,
-      marker,
-      boardSize: Number(boardSize),
-      aiLevel
-    });
-
-    setResultData(data);
-    setShowBoard(true);
-  } catch (err) {
-    setError(err.message || 'Create game failed');
-    setShowBoard(false);
-  } finally {
-    setLoading(false);
-  }
-};
-
-  if (showBoard) {
-    const finalBoardSize =
-      roomData?.boardSize || resultData?.data?.boardSize || Number(boardSize) || 10;
-
+  if (roomClosedMessage) {
     return (
       <div style={styles.page}>
         <div style={styles.card}>
-        <GameBoard
-          boardSize={finalBoardSize}
-          gameMode={gameMode}
-          marker={marker}
-          roomCode={roomCode}
-          currentUser={currentUser}
-          roomData={roomData}
-          resultData={resultData}
-          onBackToCreate={resetToCreateGame}
-          onPlayAgain={handlePlayAgain}
-/>
+          <div style={{ textAlign: 'center', padding: '40px 20px' }}>
+            <h2 style={{ marginTop: 0, marginBottom: 16 }}>This room is closed, return to main menu</h2>
+            <p style={{ marginBottom: 20, color: '#555' }}>{roomClosedMessage}</p>
+            <button type="button" style={styles.playButton} onClick={() => onExitToMenu?.() || resetToCreateGame()}>
+              Exit
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (showBoard) {
+    const finalBoardSize = roomData?.boardSize || sessionData?.boardSize || Number(boardSize) || 10;
+    return (
+      <div style={styles.page}>
+        <div style={styles.card}>
+          <GameBoard
+            boardSize={finalBoardSize}
+            boardStyleId={selectedStyleId}
+            gameMode={gameMode}
+            marker={marker}
+            roomCode={roomCode}
+            currentUser={currentUser}
+            roomData={roomData}
+            resultData={resultData}
+            player2Name={localPlayer2Name}
+            onBackToCreate={resetToCreateGame}
+            onBackToRoom={backToRoomLobby}
+            onPlayAgain={() => handlePlayAgain(roomCode)}
+            playAgainLoading={replaying}
+          />
         </div>
       </div>
     );
@@ -345,83 +237,35 @@ const handlePlayAgain = async () => {
         <div style={styles.card}>
           <h2 style={styles.title}>Create New Game</h2>
 
-          <div style={styles.resultBox}>
-            <p><strong>Current User</strong></p>
-            <p>Username: {currentUsername || 'Unknown'}</p>
-            <p>User ID: {currentUserId || 'Not found'}</p>
-            <button type="button" onClick={handleCopyUserId} style={styles.copyUserButton}>
-              Copy User ID
-            </button>
-          </div>
+          <CurrentUserCard
+            currentUsername={currentUsername}
+            currentUserId={currentUserId}
+            onCopyUserId={handleCopyUserId}
+            styles={styles}
+          />
 
-          <form onSubmit={handlePlay} style={styles.form}>
-            <div style={styles.row}>
-              <div style={styles.labelBox}>Game mode :</div>
-              <select
-                value={gameMode}
-                onChange={(e) => setGameMode(e.target.value)}
-                style={styles.select}
-              >
-                <option value="">Select mode</option>
-                <option value="LOCAL">LOCAL</option>
-                <option value="SINGLE">SINGLE</option>
-                <option value="ONLINE">ONLINE</option>
-              </select>
-            </div>
-
-            <div style={styles.row}>
-              <div style={styles.labelBox}>Marker :</div>
-              <select
-                value={marker}
-                onChange={(e) => setMarker(e.target.value)}
-                style={styles.select}
-              >
-                <option value="">Select marker</option>
-                {MARKERS.map((item) => (
-                  <option key={item} value={item}>
-                    {item}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div style={styles.row}>
-              <div style={styles.labelBox}>Board size :</div>
-              <select
-                value={boardSize}
-                onChange={(e) => setBoardSize(e.target.value)}
-                style={styles.select}
-              >
-                <option value="">Select board size</option>
-                {BOARD_SIZES.map((size) => (
-                  <option key={size} value={size}>
-                    {size} x {size}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {gameMode === 'SINGLE' && (
-              <div style={styles.row}>
-                <div style={styles.labelBox}>AI level :</div>
-                <select
-                  value={aiLevel}
-                  onChange={(e) => setAiLevel(e.target.value)}
-                  style={styles.select}
-                >
-                  <option value="easy">easy</option>
-                  <option value="medium">medium</option>
-                  <option value="hard">hard</option>
-                </select>
-              </div>
-            )}
-
-            <button type="submit" disabled={loading} style={styles.playButton}>
-              {loading ? 'Loading...' : 'Play'}
-            </button>
-          </form>
+          <CreateGamePanel
+            gameMode={gameMode}
+            setGameMode={setGameMode}
+            marker={marker}
+            setMarker={setMarker}
+            boardSize={boardSize}
+            setBoardSize={setBoardSize}
+            aiLevel={aiLevel}
+            setAiLevel={setAiLevel}
+            nextStarterRole={nextStarterRole}
+            setNextStarterRole={setNextStarterRole}
+            localPlayer2Name={localPlayer2Name}
+            setLocalPlayer2Name={setLocalPlayer2Name}
+            selectedStyleId={selectedStyleId}
+            setSelectedStyleId={setSelectedStyleId}
+            loading={loading}
+            onPlay={handlePlay}
+            styles={styles}
+          />
 
           {error && <p style={styles.error}>{error}</p>}
+          {infoMessage && <p style={styles.info}>{infoMessage}</p>}
 
           {resultData && gameMode !== 'ONLINE' && (
             <div style={styles.resultBox}>
@@ -429,147 +273,54 @@ const handlePlayAgain = async () => {
               <p>Game Mode: {gameMode}</p>
               <p>Board Size: {resultData.data?.boardSize}</p>
               <p>Marker: {marker}</p>
+              {gameMode === 'LOCAL' ? <p>Player 2 Marker: {localPlayer2Marker || 'N/A'}</p> : null}
               <p>Session ID: {resultData.data?._id || 'N/A'}</p>
             </div>
           )}
 
-          <div style={styles.resultBox}>
-            <p><strong>Join Existing Room</strong></p>
-
-            <div style={styles.joinRow}>
-              <input
-                type="text"
-                placeholder="Enter room code or paste room link"
-                value={joinRoomCode}
-                onChange={(e) => setJoinRoomCode(e.target.value)}
-                style={styles.userIdInput}
-              />
-            </div>
-
-            <div style={styles.row}>
-              <div style={styles.labelBox}>Join marker :</div>
-              <select
-                value={joinMarker}
-                onChange={(e) => setJoinMarker(e.target.value)}
-                style={styles.select}
-              >
-                <option value="">Select marker</option>
-                {MARKERS.map((item) => (
-                  <option key={item} value={item}>
-                    {item}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => handleJoinRoom()}
-              disabled={joining}
-              style={styles.playButton}
-            >
-              {joining ? 'Joining...' : 'Join Room'}
-            </button>
-          </div>
+          <JoinRoomPanel
+            joinRoomCode={joinRoomCode}
+            setJoinRoomCode={setJoinRoomCode}
+            joinMarker={joinMarker}
+            setJoinMarker={setJoinMarker}
+            joinMarkerColor={joinMarkerColor}
+            setJoinMarkerColor={setJoinMarkerColor}
+            joining={joining}
+            onJoinRoom={handleJoinRoom}
+            styles={styles}
+          />
         </div>
       ) : (
-        <div style={styles.card}>
-          <div style={styles.playerHeader}>
-            <div style={styles.playerBox}>
-              <span style={styles.playerIcon}>👤</span>
-              <span>Player 1</span>
-            </div>
-            <div style={styles.playerBox}>
-              <span>
-                {hasTwoPlayers ? 'Player 2 joined' : 'Player 2: Await'}
-              </span>
-              <span style={styles.playerIcon}>👤</span>
-            </div>
-          </div>
-
-          <div style={styles.resultBox}>
-            <p><strong>Current User</strong></p>
-            <p>Username: {currentUsername || 'Unknown'}</p>
-            <p>User ID: {currentUserId || 'Not found'}</p>
-            <button type="button" onClick={handleCopyUserId} style={styles.copyUserButton}>
-              Copy User ID
-            </button>
-          </div>
-
-          <div style={styles.linkRow}>
-            <div style={styles.labelBoxSmall}>Link :</div>
-            <input value={roomLink} readOnly style={styles.linkInput} />
-            <button type="button" onClick={handleCopyLink} style={styles.iconButton}>
-              📋
-            </button>
-          </div>
-
-          <button type="button" onClick={handleShare} style={styles.shareButton}>
-            Share
-          </button>
-
-          <div style={styles.roomInfo}>
-            <p><strong>Room Code:</strong> {roomData?.roomCode}</p>
-            <p><strong>Status:</strong> {roomData?.status}</p>
-            <p><strong>Current Turn:</strong> {roomData?.currentTurn}</p>
-            <p><strong>Board Size:</strong> {roomData?.boardSize}</p>
-            <p><strong>Your Marker:</strong> {marker}</p>
-            <p><strong>Session ID:</strong> {resultData?.data?.session?._id || 'N/A'}</p>
-            <p><strong>Role:</strong> {isHost ? 'Host' : 'Guest'}</p>
-          </div>
-
-          {!hasTwoPlayers && (
-            <div style={styles.resultBox}>
-              <p><strong>User 2 Join This Room</strong></p>
-              <p>Share the link above or send this room code:</p>
-              <p><strong>{roomCode}</strong></p>
-
-              <div style={styles.row}>
-                <div style={styles.labelBox}>Join marker :</div>
-                <select
-                  value={joinMarker}
-                  onChange={(e) => setJoinMarker(e.target.value)}
-                  style={styles.select}
-                >
-                  <option value="">Select marker</option>
-                  {availableJoinMarkers.map((item) => (
-                    <option key={item} value={item}>
-                      {item}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => handleJoinRoom(roomCode)}
-                disabled={joining}
-                style={styles.playButton}
-              >
-                {joining ? 'Joining...' : 'Join This Room'}
-              </button>
-            </div>
-          )}
-
-          {error && <p style={styles.error}>{error}</p>}
-
-          {isHost ? (
-            <button
-              type="button"
-              style={{
-                ...styles.startButton,
-                cursor: hasTwoPlayers ? 'pointer' : 'not-allowed',
-                backgroundColor: hasTwoPlayers ? '#fff' : '#f0f0f0'
-              }}
-              disabled={!hasTwoPlayers || starting}
-              onClick={handleStartRoom}
-            >
-              {starting ? 'Starting...' : 'Start'}
-            </button>
-          ) : (
-            <p style={styles.waitingText}>Waiting for host to start</p>
-          )}
-        </div>
+        <OnlineRoomLobby
+          roomData={roomData}
+          sessionData={sessionData}
+          roomCode={roomCode}
+          roomLink={roomLink}
+          marker={marker}
+          isHost={isHost}
+          hasTwoPlayers={hasTwoPlayers}
+          starting={starting}
+          closing={closing}
+          onJoinRoom={handleJoinRoom}
+          onStartRoom={() => handleStartRoom(roomCode, isHost, onlineGuestMarker)}
+          onCloseRoom={() => handleCloseRoom(roomCode)}
+          onCopyLink={handleCopyLink}
+          onShare={handleShare}
+          currentUser={currentUser}
+          currentUsername={currentUsername}
+          currentUserId={currentUserId}
+          onCopyUserId={handleCopyUserId}
+          selectedStyleId={selectedStyleId}
+          setSelectedStyleId={setSelectedStyleId}
+          error={error}
+          infoMessage={infoMessage}
+          nextStarterRole={nextStarterRole}
+          setNextStarterRole={setNextStarterRole}
+          isGameOver={isGameOver}
+          onPlayAgain={() => handlePlayAgain(roomCode)}
+          playAgainLoading={replaying}
+          styles={styles}
+        />
       )}
     </div>
   );
@@ -582,7 +333,7 @@ const styles = {
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'flex-start',
-    padding: '40px 16px'
+    padding: '40px 16px',
   },
   card: {
     width: '100%',
@@ -591,153 +342,31 @@ const styles = {
     border: '2px solid #999',
     borderRadius: '8px',
     padding: '32px 24px',
-    boxSizing: 'border-box'
+    boxSizing: 'border-box',
   },
-  title: {
-    textAlign: 'center',
-    marginBottom: '28px',
-    fontSize: '20px'
-  },
-  form: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    gap: '18px'
-  },
-  row: {
-    display: 'flex',
-    width: '100%',
-    maxWidth: '420px'
-  },
-  joinRow: {
-    display: 'flex',
-    width: '100%',
-    maxWidth: '420px',
-    margin: '10px auto'
-  },
-  labelBox: {
-    width: '140px',
-    border: '2px solid #888',
-    padding: '10px 12px',
-    backgroundColor: '#fff',
-    textAlign: 'center',
-    boxSizing: 'border-box'
-  },
-  select: {
-    flex: 1,
-    border: '2px solid #888',
-    padding: '10px 12px',
-    outline: 'none'
-  },
-  userIdInput: {
-    width: '100%',
-    padding: '10px 12px',
-    border: '2px solid #888',
-    boxSizing: 'border-box'
-  },
-  playButton: {
-    marginTop: '10px',
-    minWidth: '120px',
-    padding: '12px 24px',
-    border: '2px solid #888',
-    borderRadius: '6px',
-    backgroundColor: '#fff',
-    cursor: 'pointer'
-  },
-  copyUserButton: {
-    marginTop: '10px',
-    padding: '8px 12px',
-    border: '1px solid #888',
-    borderRadius: '6px',
-    backgroundColor: '#fff',
-    cursor: 'pointer'
-  },
-  error: {
-    color: 'red',
-    textAlign: 'center',
-    marginTop: '20px'
-  },
-  resultBox: {
-    marginTop: '24px',
-    border: '1px solid #ccc',
-    padding: '16px',
-    textAlign: 'center'
-  },
-  playerHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '28px',
-    borderBottom: '2px solid #ddd',
-    paddingBottom: '12px'
-  },
-  playerBox: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '10px',
-    fontWeight: '600'
-  },
-  playerIcon: {
-    fontSize: '22px'
-  },
-  linkRow: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0',
-    width: '100%',
-    maxWidth: '520px',
-    margin: '0 auto 20px auto'
-  },
-  labelBoxSmall: {
-    width: '100px',
-    border: '2px solid #888',
-    padding: '10px 12px',
-    textAlign: 'center',
-    boxSizing: 'border-box'
-  },
-  linkInput: {
-    flex: 1,
-    border: '2px solid #888',
-    padding: '10px 12px',
-    outline: 'none'
-  },
-  iconButton: {
-    marginLeft: '10px',
-    padding: '10px 12px',
-    border: '2px solid #888',
-    backgroundColor: '#fff',
-    cursor: 'pointer'
-  },
-  shareButton: {
-    display: 'block',
-    margin: '0 auto 28px auto',
-    minWidth: '120px',
-    padding: '10px 20px',
-    border: '2px solid #888',
-    borderRadius: '6px',
-    backgroundColor: '#fff',
-    cursor: 'pointer'
-  },
-  roomInfo: {
-    textAlign: 'center',
-    marginBottom: '28px',
-    lineHeight: '1.8'
-  },
-  startButton: {
-    display: 'block',
-    margin: '0 auto',
-    minWidth: '120px',
-    padding: '14px 24px',
-    border: '2px solid #888',
-    borderRadius: '6px',
-    backgroundColor: '#f0f0f0'
-  },
-  waitingText: {
-    textAlign: 'center',
-    fontWeight: '600',
-    color: '#555',
-    marginTop: '12px'
-  }
+  title: { textAlign: 'center', marginBottom: '28px', fontSize: '20px' },
+  form: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '18px' },
+  row: { display: 'flex', width: '100%', maxWidth: '420px', fontSize: '14px', lineHeight: 1.35 },
+  joinRow: { display: 'flex', width: '100%', maxWidth: '420px', margin: '10px auto', fontSize: '14px', lineHeight: 1.35 },
+  labelBox: { width: '140px', border: '2px solid #888', padding: '10px 12px', backgroundColor: '#fff', textAlign: 'center', boxSizing: 'border-box', fontSize: '14px' },
+  select: { flex: 1, border: '2px solid #888', padding: '10px 12px', outline: 'none', fontSize: '14px' },
+  userIdInput: { width: '100%', padding: '10px 12px', border: '2px solid #888', boxSizing: 'border-box', fontSize: '14px' },
+  playButton: { marginTop: '10px', minWidth: '120px', padding: '12px 24px', border: '2px solid #888', borderRadius: '6px', backgroundColor: '#fff', cursor: 'pointer', fontSize: '14px' },
+  copyUserButton: { marginTop: '10px', padding: '8px 12px', border: '1px solid #888', borderRadius: '6px', backgroundColor: '#fff', cursor: 'pointer', fontSize: '14px' },
+  error: { color: 'red', textAlign: 'center', marginTop: '20px' },
+  info: { color: '#444', textAlign: 'center', marginTop: '20px' },
+  resultBox: { marginTop: '24px', border: '1px solid #ccc', padding: '16px', textAlign: 'center', fontSize: '14px', lineHeight: 1.45 },
+  playerHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '28px', borderBottom: '2px solid #ddd', paddingBottom: '12px' },
+  playerBox: { display: 'flex', alignItems: 'center', gap: '10px', fontWeight: '600' },
+  playerIcon: { fontSize: '18px' },
+  linkRow: { display: 'flex', alignItems: 'center', gap: '0', width: '100%', maxWidth: '520px', margin: '0 auto 20px auto' },
+  labelBoxSmall: { width: '100px', border: '2px solid #888', padding: '10px 12px', textAlign: 'center', boxSizing: 'border-box', fontSize: '14px' },
+  linkInput: { flex: 1, border: '2px solid #888', padding: '10px 12px', outline: 'none', fontSize: '14px' },
+  iconButton: { marginLeft: '10px', padding: '10px 12px', border: '2px solid #888', backgroundColor: '#fff', cursor: 'pointer', fontSize: '14px' },
+  shareButton: { display: 'block', margin: '0 auto 28px auto', minWidth: '120px', padding: '10px 20px', border: '2px solid #888', borderRadius: '6px', backgroundColor: '#fff', cursor: 'pointer', fontSize: '14px' },
+  roomInfo: { textAlign: 'center', marginBottom: '28px', lineHeight: '1.55', fontSize: '14px' },
+  startButton: { display: 'block', margin: '0 auto', minWidth: '120px', padding: '14px 24px', border: '2px solid #888', borderRadius: '6px', backgroundColor: '#f0f0f0', fontSize: '14px' },
+  waitingText: { textAlign: 'center', fontWeight: '600', color: '#555', marginTop: '12px' },
 };
 
 export default CreateRoomForm;

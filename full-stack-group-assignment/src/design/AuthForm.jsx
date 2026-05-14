@@ -50,11 +50,11 @@ function AuthForm({ onAuthSuccess, onClose }) {
       return
     }
 
-    localStorage.setItem(TOKEN_STORAGE_KEY, token)
+    sessionStorage.setItem(TOKEN_STORAGE_KEY, token)
   }
 
   function getAuthorizationHeader() {
-    const token = localStorage.getItem(TOKEN_STORAGE_KEY)
+    const token = sessionStorage.getItem(TOKEN_STORAGE_KEY)
     return token ? { Authorization: `Bearer ${token}` } : {}
   }
 
@@ -174,7 +174,7 @@ function AuthForm({ onAuthSuccess, onClose }) {
     verifyProtectedSession(user?._id)
 
     if (onAuthSuccess) {
-      onAuthSuccess(user)
+      onAuthSuccess(user, { openCreate: true })
     }
     setMessage('Register successful')
   }
@@ -211,7 +211,7 @@ function AuthForm({ onAuthSuccess, onClose }) {
     verifyProtectedSession(user?._id)
 
     if (onAuthSuccess) {
-      onAuthSuccess(user)
+      onAuthSuccess(user, { openCreate: false })
     }
     setMessage('Login successful')
   }

@@ -1,16 +1,12 @@
-import { useCallback, useMemo, useState, useEffect } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import AuthForm from './design/AuthForm'
 import LoginRequiredPopup from './components/LoginRequiredPopup'
 import CreateRoomPage from './pages/CreateRoomPage'
 import HomePage from './pages/HomePage'
 import ProfilePage from './pages/ProfilePage'
-import WalletPage from './pages/WalletPage'
 import ArenaPage from './pages/ArenaPage'
-import AdminDashboard from './pages/AdminDashboard'
-import { API_ROOT_URL, TOKEN_STORAGE_KEY } from './config/appConfig'
-import FakeVNPay from './pages/FakeVNPay'
-import QRPayment from './pages/QRPayment'
-import FakeBank from './pages/FakeBank'
+import DuelingRoomPage from './pages/DuelingRoomPage'
+import { TOKEN_STORAGE_KEY } from './config/appConfig'
 import { toAssetUrl } from './utils/gameUtils'
 
 const VIEWS = {
@@ -18,12 +14,8 @@ const VIEWS = {
   AUTH: 'auth',
   CREATE: 'create',
   PROFILE: 'profile',
-  WALLET: 'wallet',
-  FAKE_VNPAY: 'fake_vnpay',
-  QR: 'qr',
-  FAKE_BANK: 'fake_bank',
   ARENA: 'arena',
-  ADMIN: 'admin',
+  DUELING: 'dueling',
 }
 
 function App() {
@@ -31,28 +23,21 @@ function App() {
   const [view, setView] = useState(VIEWS.HOME)
   const [isGateOpen, setIsGateOpen] = useState(false)
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [isGamePlaying, setIsGamePlaying] = useState(false)
 
   const isAuthed = Boolean(currentUser)
 
   const [arenaJoinCode, setArenaJoinCode] = useState('')
+  const [duelingResume, setDuelingResume] = useState(null)
 
   const shellTitle = useMemo(() => {
     if (view === VIEWS.CREATE) return 'Create Room'
     if (view === VIEWS.PROFILE) return 'User Profile'
-    if (view === VIEWS.WALLET) return 'Wallet & Subscription'
     if (view === VIEWS.AUTH) return 'Login / Register'
-    if (view === VIEWS.ADMIN) return 'Admin Dashboard'
+    if (view === VIEWS.ARENA) return 'Arena'
+    if (view === VIEWS.DUELING) return 'Dueling Room'
     return 'Tic Tac Toe'
   }, [view])
-
-  function requireAuth(action) {
-    if (isAuthed) {
-      action()
-      return
-    }
-
-    setIsGateOpen(true)
-  }
 
   function goHome() {
     setView(VIEWS.HOME)
@@ -60,21 +45,19 @@ function App() {
   }
 
   function goProfile() {
-    requireAuth(() => {
-      setView(VIEWS.PROFILE)
+    if (!isAuthed) {
       setIsMenuOpen(false)
-    })
-  }
+      setView(VIEWS.CREATE)
+      setIsGateOpen(true)
+      return
+    }
 
-  function goWallet() {
-    requireAuth(() => {
-      setView(VIEWS.WALLET)
-      setIsMenuOpen(false)
-    })
+    setView(VIEWS.PROFILE)
+    setIsMenuOpen(false)
   }
 
   function goCreate() {
-    requireAuth(() => setView(VIEWS.CREATE))
+    setView(VIEWS.CREATE)
   }
 
   function goArena() {
@@ -82,15 +65,18 @@ function App() {
     setIsMenuOpen(false)
   }
 
-  function goAdmin() {
-    requireAuth(() => {
-      setView(VIEWS.ADMIN)
-      setIsMenuOpen(false)
-    })
+  function goDueling() {
+    setView(VIEWS.DUELING)
+    setIsMenuOpen(false)
   }
 
   function handleJoinFromArena(roomCode) {
     setArenaJoinCode(roomCode)
+    setView(VIEWS.CREATE)
+  }
+
+  function handleRejoinFromDueling(entry) {
+    setDuelingResume(entry)
     setView(VIEWS.CREATE)
   }
 
@@ -105,9 +91,9 @@ function App() {
     setView(VIEWS.AUTH)
   }, [])
 
-  function handleAuthSuccess(user) {
+  function handleAuthSuccess(user, options = {}) {
     setCurrentUser(user)
-    setView(VIEWS.CREATE)
+    setView(options.openCreate ? VIEWS.CREATE : VIEWS.HOME)
     setIsMenuOpen(false)
   }
 
@@ -116,82 +102,26 @@ function App() {
   }
 
   function handleLogout() {
-    localStorage.removeItem(TOKEN_STORAGE_KEY)
+    sessionStorage.removeItem(TOKEN_STORAGE_KEY)
     setCurrentUser(null)
     setIsGateOpen(false)
     setIsMenuOpen(false)
-    setView(VIEWS.AUTH)
+    setView(VIEWS.HOME)
   }
 
   function toggleMenu() {
     setIsMenuOpen((prev) => !prev)
   }
 
+  const handleGameStatusChange = (isPlaying) => {
+    setIsGamePlaying(isPlaying)
+    if (isPlaying) {
+      setIsMenuOpen(false)
+    }
+  }
+
   const avatarSrc = toAssetUrl(currentUser?.avatarUrl)
-  const displayName = currentUser?.username || 'Guest'
-
-  useEffect(() => {
-    const pathname = window.location.pathname
-
-    if (pathname === '/fake-vnpay') {
-      setView(VIEWS.FAKE_VNPAY)
-      return
-    }
-
-    if (pathname === '/qr-payment') {
-      setView(VIEWS.QR)
-      return
-    }
-
-    if (pathname === '/fake-bank') {
-      setView(VIEWS.FAKE_BANK)
-      return
-    }
-
-    if (pathname === '/wallet') {
-      setView(VIEWS.WALLET)
-      return
-    }
-
-    if (pathname === '/profile') {
-      setView(VIEWS.PROFILE)
-      return
-    }
-
-    if (pathname === '/admin') {
-      setView(VIEWS.ADMIN)
-      return
-    }
-  }, [])
-
-  // Load user from token on app startup
-  useEffect(() => {
-    const token = localStorage.getItem(TOKEN_STORAGE_KEY)
-    if (token) {
-      // Verify token and load user
-      fetch(`${API_ROOT_URL}/auth/verify`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      })
-        .then((response) => {
-          if (response.ok) {
-            return response.json()
-          }
-          throw new Error('Token verification failed')
-        })
-        .then((data) => {
-          if (data.user) {
-            setCurrentUser(data.user)
-          }
-        })
-        .catch(() => {
-          // Token invalid or verification failed, remove invalid token
-          localStorage.removeItem(TOKEN_STORAGE_KEY)
-          setCurrentUser(null)
-        })
-    }
-  }, [])
+  const displayName = currentUser?.username || 'Anonymous'
 
   return (
     <div style={styles.shell}>
@@ -200,31 +130,35 @@ function App() {
       </header>
 
       <nav style={styles.navbar}>
-        <button type="button" style={styles.navBtn} onClick={goHome}>
-          Home
-        </button>
-        {isAuthed ? (
-          <button type="button" style={styles.navBtn} onClick={goWallet}>
-            Wallet
-          </button>
-        ) : null}
-        {isAuthed && currentUser?.role === 'ADMIN' ? (
-          <button type="button" style={styles.navBtn} onClick={goAdmin}>
-            Admin Dashboard
-          </button>
-        ) : null}
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          {!isGamePlaying ? (
+            <>
+              <button type="button" style={styles.navBtn} onClick={goHome}>
+                Home
+              </button>
+              <button type="button" style={styles.navBtn} onClick={goDueling}>
+                Dueling Room
+              </button>
+              <button type="button" style={styles.navBtn} onClick={goArena}>
+                Arena
+              </button>
+            </>
+          ) : null}
+        </div>
         <div style={styles.navRight}>
-          <button
-            type="button"
-            style={styles.menuBtn}
-            onClick={toggleMenu}
-            aria-label="Open menu"
-            aria-expanded={isMenuOpen}
-          >
-            <span style={styles.menuIcon}>☰</span>
-          </button>
+          {!isGamePlaying && (
+            <button
+              type="button"
+              style={styles.menuBtn}
+              onClick={toggleMenu}
+              aria-label="Open menu"
+              aria-expanded={isMenuOpen}
+            >
+              <span style={styles.menuIcon}>☰</span>
+            </button>
+          )}
 
-          {isMenuOpen ? (
+          {isMenuOpen && !isGamePlaying ? (
             <div style={styles.menuPanel}>
               <div style={styles.menuUserBlock}>
                 <div style={styles.avatarWrap}>
@@ -237,30 +171,28 @@ function App() {
                 <div style={styles.menuUsername}>{displayName}</div>
               </div>
 
-              <button type="button" style={styles.menuAction} onClick={goProfile}>
-                Edit Profile
-              </button>
+              {isAuthed ? (
+                <>
+                  <button type="button" style={styles.menuAction} onClick={goProfile}>
+                    Edit Profile
+                  </button>
 
-              <button type="button" style={styles.menuAction} onClick={goWallet}>
-                Wallet & Subscription
-              </button>
-
-              {currentUser?.role === 'ADMIN' && (
-                <button type="button" style={styles.menuAction} onClick={goAdmin}>
-                  Admin Dashboard
+                  <button
+                    type="button"
+                    style={{
+                      ...styles.menuAction,
+                      ...styles.logoutAction,
+                    }}
+                    onClick={handleLogout}
+                  >
+                    Log out
+                  </button>
+                </>
+              ) : (
+                <button type="button" style={styles.menuAction} onClick={openAuth}>
+                  Login
                 </button>
               )}
-
-              <button
-                type="button"
-                style={{
-                  ...styles.menuAction,
-                  ...styles.logoutAction,
-                }}
-                onClick={handleLogout}
-              >
-                Log out
-              </button>
             </div>
           ) : null}
         </div>
@@ -279,8 +211,12 @@ function App() {
           <CreateRoomPage
             currentUser={currentUser}
             onRequireLogin={requireCreateLogin}
+            onExitToMenu={goHome}
             initialJoinCode={arenaJoinCode}
             onInitialJoinCodeConsumed={() => setArenaJoinCode('')}
+            resumeEntry={duelingResume}
+            onResumeEntryConsumed={() => setDuelingResume(null)}
+            onGameStatusChange={handleGameStatusChange}
           />
         ) : null}
 
@@ -292,6 +228,14 @@ function App() {
           />
         ) : null}
 
+        {view === VIEWS.DUELING ? (
+          <DuelingRoomPage
+            currentUser={currentUser}
+            onRejoin={handleRejoinFromDueling}
+            onRequireLogin={requireCreateLogin}
+          />
+        ) : null}
+
         {view === VIEWS.PROFILE ? (
           <ProfilePage
             currentUser={currentUser}
@@ -299,25 +243,6 @@ function App() {
             onUserUpdated={handleUserUpdated}
           />
         ) : null}
-
-        {view === VIEWS.WALLET ? (
-          <WalletPage
-            currentUser={currentUser}
-            onRequestLogin={openAuth}
-          />
-        ) : null}
-
-        {view === VIEWS.ADMIN ? (
-          <AdminDashboard />
-        ) : null}
-
-        {view === VIEWS.FAKE_VNPAY ? (
-            <FakeVNPay />
-        ) : null}
-
-        {view === VIEWS.QR ? <QRPayment /> : null}
-
-        {view === VIEWS.FAKE_BANK ? <FakeBank /> : null}
       </main>
 
       <LoginRequiredPopup
@@ -328,6 +253,7 @@ function App() {
     </div>
   )
 }
+
 
 const styles = {
   shell: {

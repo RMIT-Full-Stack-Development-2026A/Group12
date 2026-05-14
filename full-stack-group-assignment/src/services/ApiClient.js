@@ -6,7 +6,9 @@ class ApiClient {
   }
 
   _getToken() {
-    return localStorage.getItem(TOKEN_STORAGE_KEY) || '';
+    // sessionStorage (per-tab) so multi-account login on the same browser
+    // doesn't clobber across tabs.
+    return sessionStorage.getItem(TOKEN_STORAGE_KEY) || '';
   }
 
   _authHeaders() {

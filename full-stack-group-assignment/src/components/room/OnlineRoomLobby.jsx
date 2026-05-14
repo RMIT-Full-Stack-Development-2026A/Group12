@@ -71,12 +71,8 @@ function OnlineRoomLobby({
   marker,
   isHost,
   hasTwoPlayers,
-  joining,
   starting,
   closing,
-  joinMarker,
-  setJoinMarker,
-  availableJoinMarkers,
   onJoinRoom,
   onStartRoom,
   onCloseRoom,
@@ -92,6 +88,9 @@ function OnlineRoomLobby({
   infoMessage,
   nextStarterRole,
   setNextStarterRole,
+  isGameOver,
+  onPlayAgain,
+  playAgainLoading,
   styles,
 }) {
   const hostEntry = roomData?.players?.[0];
@@ -99,6 +98,9 @@ function OnlineRoomLobby({
 
   const hostInfo = resolvePlayerInfo(hostEntry, isHost ? currentUser : null);
   const guestInfo = resolvePlayerInfo(guestEntry, !isHost ? currentUser : null);
+  const currentPlayer = roomData?.players?.find((player) => String(player?.userId?._id || player?.userId) === String(currentUserId)) || null;
+  const currentMarkerLabel = currentPlayer?.displayMarker || marker;
+  const currentMarkerColor = currentPlayer?.markerColor || '#000000';
 
   return (
     <div style={styles.card}>
@@ -152,7 +154,7 @@ function OnlineRoomLobby({
         <p><strong>Status:</strong> {roomData?.status}</p>
         <p><strong>Current Turn:</strong> {sessionData?.currentTurn || 'N/A'}</p>
         <p><strong>Board Size:</strong> {roomData?.boardSize}</p>
-        <p><strong>Your Marker:</strong> {marker}</p>
+        <p><strong>Your Marker:</strong> <span style={{ color: currentMarkerColor, fontWeight: 700 }}>{currentMarkerLabel}</span></p>
         <p><strong>Session ID:</strong> {sessionData?._id || 'N/A'}</p>
         <p><strong>Role:</strong> {isHost ? 'Host' : 'Guest'}</p>
       </div>
@@ -173,39 +175,6 @@ function OnlineRoomLobby({
         </div>
       )}
 
-      {!hasTwoPlayers && (
-        <div style={styles.resultBox}>
-          <p><strong>User 2 Join This Room</strong></p>
-          <p>Share the link above or send this room code:</p>
-          <p><strong>{roomCode}</strong></p>
-
-          <div style={styles.row}>
-            <div style={styles.labelBox}>Join marker :</div>
-            <select
-              value={joinMarker}
-              onChange={(e) => setJoinMarker(e.target.value)}
-              style={styles.select}
-            >
-              <option value="">Select marker</option>
-              {availableJoinMarkers.map((item) => (
-                <option key={item} value={item}>
-                  {item}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => onJoinRoom(roomCode)}
-            disabled={joining}
-            style={styles.playButton}
-          >
-            {joining ? 'Joining...' : 'Join This Room'}
-          </button>
-        </div>
-      )}
-
       {error && <p style={styles.error}>{error}</p>}
       {infoMessage && <p style={styles.info}>{infoMessage}</p>}
 
@@ -216,7 +185,7 @@ function OnlineRoomLobby({
             value={nextStarterRole}
             onChange={(e) => setNextStarterRole(e.target.value)}
             style={styles.select}
-            disabled={!hasTwoPlayers || starting}
+            disabled={!hasTwoPlayers || starting || playAgainLoading}
           >
             <option value="PLAYER1">Turn 1</option>
             <option value="PLAYER2">Turn 2</option>
@@ -224,7 +193,7 @@ function OnlineRoomLobby({
         </div>
       ) : null}
 
-      {isHost ? (
+      {isHost && !isGameOver ? (
         <button
           type="button"
           style={{
@@ -237,31 +206,55 @@ function OnlineRoomLobby({
         >
           {starting ? 'Starting...' : 'Start'}
         </button>
+      ) : isHost && isGameOver ? (
+        <>
+          <div style={{
+            display: 'flex',
+            gap: 12,
+            justifyContent: 'center',
+            marginTop: 12,
+            flexWrap: 'wrap',
+          }}>
+            <button
+              type="button"
+              onClick={onPlayAgain}
+              disabled={playAgainLoading}
+              style={{
+                padding: '10px 24px',
+                background: '#f0f9ff',
+                color: '#0369a1',
+                border: '1px solid #7dd3fc',
+                borderRadius: 6,
+                cursor: playAgainLoading ? 'not-allowed' : 'pointer',
+                fontWeight: 600,
+                fontSize: 14,
+              }}
+            >
+              {playAgainLoading ? 'Waiting...' : 'Play Again'}
+            </button>
+            <button
+              type="button"
+              onClick={onCloseRoom}
+              disabled={closing}
+              style={{
+                padding: '10px 24px',
+                background: '#fee2e2',
+                color: '#b91c1c',
+                border: '1px solid #fca5a5',
+                borderRadius: 6,
+                cursor: closing ? 'not-allowed' : 'pointer',
+                fontWeight: 600,
+                fontSize: 14,
+              }}
+            >
+              {closing ? 'Closing...' : 'Close Room'}
+            </button>
+          </div>
+        </>
       ) : (
         <p style={styles.waitingText}>Waiting for host to start</p>
       )}
 
-      {/* Close Room button — host only, not when game is PLAYING */}
-      {isHost && roomData?.status !== 'PLAYING' && (
-        <button
-          type="button"
-          onClick={onCloseRoom}
-          disabled={closing}
-          style={{
-            marginTop: 12,
-            padding: '8px 20px',
-            background: '#fee2e2',
-            color: '#b91c1c',
-            border: '1px solid #fca5a5',
-            borderRadius: 6,
-            cursor: closing ? 'not-allowed' : 'pointer',
-            fontWeight: 600,
-            fontSize: 14,
-          }}
-        >
-          {closing ? 'Closing...' : 'Close Room'}
-        </button>
-      )}
     </div>
   );
 }
