@@ -15,6 +15,10 @@ function AdminUsersSection() {
 
   useEffect(() => {
     loadUsers()
+
+    const interval = setInterval(loadUsers, 5000)
+
+    return () => clearInterval(interval)
   }, [])
 
   async function loadUsers() {

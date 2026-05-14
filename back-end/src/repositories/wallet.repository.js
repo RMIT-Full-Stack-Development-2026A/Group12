@@ -12,7 +12,7 @@ async function updateBalance(userId, amount) {
   return Wallet.findOneAndUpdate(
     { userId },
     { $inc: { balance: amount } },
-    { new: true }
+    { returnDocument: 'after' }
   );
 }
 

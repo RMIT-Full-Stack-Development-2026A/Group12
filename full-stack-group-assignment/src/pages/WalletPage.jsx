@@ -161,13 +161,24 @@ function WalletPage({ currentUser, onRequestLogin }) {
 
     if (payment === 'success') {
       alert('Payment successful')
-      loadWallet()
-      loadTransactions()
-      loadProfile()
+      
+      // Properly handle async calls with error handling
+      Promise.all([
+        loadWallet().catch(err => console.error('Failed to load wallet:', err)),
+        loadTransactions().catch(err => console.error('Failed to load transactions:', err)),
+        loadProfile().catch(err => console.error('Failed to load profile:', err))
+      ]).finally(() => {
+        // Clear the payment parameter from URL
+        const newUrl = window.location.pathname
+        window.history.replaceState({}, '', newUrl)
+      })
     }
 
     if (payment === 'failed') {
       alert('Payment failed')
+      // Clear the payment parameter from URL
+      const newUrl = window.location.pathname
+      window.history.replaceState({}, '', newUrl)
     }
   }, [])
 

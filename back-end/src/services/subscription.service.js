@@ -40,7 +40,7 @@ async function subscribeWithWallet(userId) {
   },
   {
     upsert: true,
-    new: true
+    returnDocument: 'after'
   }
 );
   await paymentRepo.createPayment({

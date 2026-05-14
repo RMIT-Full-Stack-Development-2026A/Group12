@@ -194,8 +194,25 @@ function getCountryList(req, res) {
   return res.status(200).json({ countries: COUNTRY_LIST });
 }
 
+async function verify(req, res) {
+  try {
+    const user = await User.findById(req.auth.userId);
+    if (!user) {
+      return res.status(401).json({ message: 'User not found' });
+    }
+
+    return res.status(200).json({
+      message: 'Token valid',
+      user: getSafeUser(user)
+    });
+  } catch (error) {
+    return res.status(500).json({ message: 'Verification failed', error: error.message });
+  }
+}
+
 module.exports = {
   register,
   login,
-  getCountryList
+  getCountryList,
+  verify
 };

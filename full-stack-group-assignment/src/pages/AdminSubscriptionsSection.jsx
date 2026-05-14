@@ -8,6 +8,10 @@ function AdminSubscriptionsSection() {
 
   useEffect(() => {
     loadSubscriptions()
+
+    const interval = setInterval(loadSubscriptions, 5000)
+
+    return () => clearInterval(interval)
   }, [])
 
   async function loadSubscriptions() {

@@ -6,6 +6,7 @@ function AdminTransactionsSection() {
   const [stats, setStats] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+  const [pagination, setPagination] = useState(null)
 
   useEffect(() => {
     loadData()
@@ -22,6 +23,7 @@ function AdminTransactionsSection() {
 
       if (transRes.success) {
         setTransactions(transRes.data)
+        setPagination(transRes.pagination)
       }
 
       if (statsRes.success) {
@@ -49,9 +51,9 @@ function AdminTransactionsSection() {
   }
 
   const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat('vi-VN', {
       style: 'currency',
-      currency: 'USD',
+      currency: 'VND',
     }).format(amount)
   }
 
@@ -66,7 +68,7 @@ function AdminTransactionsSection() {
       <div style={styles.statsGrid}>
         <div style={styles.statItem}>
           <div style={styles.statLabel}>Total Transactions</div>
-          <div style={styles.statValue}>{transactions.length}</div>
+          <div style={styles.statValue}>{pagination?.total || transactions.length}</div>
         </div>
         <div style={styles.statItem}>
           <div style={styles.statLabel}>Total Amount</div>

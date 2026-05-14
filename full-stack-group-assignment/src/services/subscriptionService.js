@@ -9,12 +9,25 @@ function getHeaders() {
   }
 }
 
+async function handleResponse(res) {
+  const data = await res.json()
+  
+  if (!res.ok) {
+    const error = new Error(data.message || 'Request failed')
+    error.status = res.status
+    error.data = data
+    throw error
+  }
+  
+  return data
+}
+
 export async function getWallet() {
   const res = await fetch(`${API_ROOT_URL}/wallet`, {
     headers: getHeaders()
   })
 
-  return res.json()
+  return handleResponse(res)
 }
 
 export async function depositWallet(amount) {
@@ -24,7 +37,7 @@ export async function depositWallet(amount) {
     body: JSON.stringify({ amount })
   })
 
-  return res.json()
+  return handleResponse(res)
 }
 
 export async function withdrawWallet(amount) {
@@ -34,7 +47,7 @@ export async function withdrawWallet(amount) {
     body: JSON.stringify({ amount })
   })
 
-  return res.json()
+  return handleResponse(res)
 }
 
 export async function subscribeWallet() {
@@ -43,7 +56,7 @@ export async function subscribeWallet() {
     headers: getHeaders()
   })
 
-  return res.json()
+  return handleResponse(res)
 }
 
 export async function subscribeQR() {
@@ -52,7 +65,7 @@ export async function subscribeQR() {
     headers: getHeaders()
   })
 
-  return res.json()
+  return handleResponse(res)
 }
 
 export async function getPaymentHistory() {
@@ -60,5 +73,5 @@ export async function getPaymentHistory() {
     headers: getHeaders()
   })
 
-  return res.json()
+  return handleResponse(res)
 }

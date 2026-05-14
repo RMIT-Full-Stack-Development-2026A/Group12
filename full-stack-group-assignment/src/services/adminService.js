@@ -9,13 +9,26 @@ function getHeaders() {
   }
 }
 
+async function handleResponse(res) {
+  const data = await res.json()
+  
+  if (!res.ok) {
+    const error = new Error(data.message || 'Request failed')
+    error.status = res.status
+    error.data = data
+    throw error
+  }
+  
+  return data
+}
+
 // Users endpoints
 export async function getAllUsers() {
   const res = await fetch(`${API_ROOT_URL}/admin/users`, {
     headers: getHeaders()
   })
 
-  return res.json()
+  return handleResponse(res)
 }
 
 export async function getUserById(userId) {
@@ -23,7 +36,7 @@ export async function getUserById(userId) {
     headers: getHeaders()
   })
 
-  return res.json()
+  return handleResponse(res)
 }
 
 export async function deleteUser(userId) {
@@ -32,7 +45,7 @@ export async function deleteUser(userId) {
     headers: getHeaders()
   })
 
-  return res.json()
+  return handleResponse(res)
 }
 
 export async function suspendUser(userId) {
@@ -41,7 +54,7 @@ export async function suspendUser(userId) {
     headers: getHeaders()
   })
 
-  return res.json()
+  return handleResponse(res)
 }
 
 export async function unsuspendUser(userId) {
@@ -50,7 +63,7 @@ export async function unsuspendUser(userId) {
     headers: getHeaders()
   })
 
-  return res.json()
+  return handleResponse(res)
 }
 
 // Subscriptions endpoints
@@ -59,7 +72,7 @@ export async function getActiveSubscriptions() {
     headers: getHeaders()
   })
 
-  return res.json()
+  return handleResponse(res)
 }
 
 // Transactions endpoints
@@ -68,7 +81,7 @@ export async function getAllTransactions() {
     headers: getHeaders()
   })
 
-  return res.json()
+  return handleResponse(res)
 }
 
 export async function getTransactionStats() {
@@ -76,5 +89,5 @@ export async function getTransactionStats() {
     headers: getHeaders()
   })
 
-  return res.json()
+  return handleResponse(res)
 }

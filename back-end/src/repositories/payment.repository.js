@@ -12,7 +12,7 @@ async function updateStatus(orderId, status) {
   return Payment.findOneAndUpdate(
     { orderId },
     { status },
-    { new: true }
+    { returnDocument: 'after' }
   );
 }
 

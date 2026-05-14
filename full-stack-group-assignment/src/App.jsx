@@ -7,7 +7,7 @@ import ProfilePage from './pages/ProfilePage'
 import WalletPage from './pages/WalletPage'
 import ArenaPage from './pages/ArenaPage'
 import AdminDashboard from './pages/AdminDashboard'
-import { API_ORIGIN, TOKEN_STORAGE_KEY } from './config/appConfig'
+import { API_ROOT_URL, TOKEN_STORAGE_KEY } from './config/appConfig'
 import FakeVNPay from './pages/FakeVNPay'
 import QRPayment from './pages/QRPayment'
 import FakeBank from './pages/FakeBank'
@@ -161,6 +161,35 @@ function App() {
     if (pathname === '/admin') {
       setView(VIEWS.ADMIN)
       return
+    }
+  }, [])
+
+  // Load user from token on app startup
+  useEffect(() => {
+    const token = localStorage.getItem(TOKEN_STORAGE_KEY)
+    if (token) {
+      // Verify token and load user
+      fetch(`${API_ROOT_URL}/auth/verify`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+        .then((response) => {
+          if (response.ok) {
+            return response.json()
+          }
+          throw new Error('Token verification failed')
+        })
+        .then((data) => {
+          if (data.user) {
+            setCurrentUser(data.user)
+          }
+        })
+        .catch(() => {
+          // Token invalid or verification failed, remove invalid token
+          localStorage.removeItem(TOKEN_STORAGE_KEY)
+          setCurrentUser(null)
+        })
     }
   }, [])
 

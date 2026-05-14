@@ -95,7 +95,7 @@ async function handleVNPayReturn(query) {
       const wallet = await Wallet.findOneAndUpdate(
         { userId: payment.userId },
         { $inc: { balance: amount } },
-        { upsert: true, new: true }
+        { upsert: true, returnDocument: 'after' }
       );
 
       await transactionService.createDepositTransaction({
@@ -121,14 +121,14 @@ async function handleVNPayReturn(query) {
         },
         {
           upsert: true,
-          new: true
+          returnDocument: 'after'
         }
       );
 
       const user = await User.findByIdAndUpdate(
         payment.userId,
         { isPremium: true },
-        { new: true }
+        { returnDocument: 'after' }
       );
 
       const wallet = await Wallet.findOne({
