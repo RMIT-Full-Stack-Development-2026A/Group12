@@ -9,6 +9,13 @@ const connectToDatabase = require('./config/db');
 const authRouter = require('./router/authRouter');
 const userProfileRouter = require('./router/userProfileRouter');
 const roomRoutes = require('./router/roomRouter');
+const walletRoutes = require('./router/wallet.route');
+const subscriptionRoutes = require('./router/subscription.route');
+const paymentRoutes = require('./router/payment.route');
+const transactionRoutes = require('./router/transaction.route');
+const adminRoutes = require('./router/adminRouter');
+const { startSubscriptionJob } = require('./cron/subscription.cron');
+const { startPaymentCleanupJob } = require('./cron/payment.cron');
 const { initSocket } = require('./socket');
 const gameService = require('./services/game.service');
 
@@ -29,6 +36,11 @@ app.get('/api/health', (req, res) => {
 app.use('/api/auth', authRouter);
 app.use('/api/users', userProfileRouter);
 app.use('/api/rooms', roomRoutes);
+app.use('/api/wallet', walletRoutes);
+app.use('/api/subscription', subscriptionRoutes);
+app.use('/api/payment', paymentRoutes);
+app.use('/api/transaction', transactionRoutes);
+app.use('/api/admin', adminRoutes);
 
 function startServer() {
   const server = http.createServer(app);
@@ -87,6 +99,8 @@ connectToDatabase()
   .then(() => {
     setInterval(runRoomCleanup, CLEANUP_INTERVAL_MS);
     runRoomCleanup();
+    startSubscriptionJob();
+    startPaymentCleanupJob();
   })
   .catch((error) => {
     console.error('Unable to connect to MongoDB:', error.message);

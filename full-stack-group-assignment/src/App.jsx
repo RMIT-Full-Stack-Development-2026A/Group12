@@ -6,6 +6,8 @@ import HomePage from './pages/HomePage'
 import ProfilePage from './pages/ProfilePage'
 import ArenaPage from './pages/ArenaPage'
 import DuelingRoomPage from './pages/DuelingRoomPage'
+import AdminDashboard from './pages/AdminDashboard'
+import WalletPage from './pages/WalletPage'
 import { TOKEN_STORAGE_KEY } from './config/appConfig'
 import { toAssetUrl } from './utils/gameUtils'
 
@@ -16,6 +18,8 @@ const VIEWS = {
   PROFILE: 'profile',
   ARENA: 'arena',
   DUELING: 'dueling',
+  ADMIN: 'admin',
+  WALLET: 'wallet',
 }
 
 function App() {
@@ -36,6 +40,8 @@ function App() {
     if (view === VIEWS.AUTH) return 'Login / Register'
     if (view === VIEWS.ARENA) return 'Arena'
     if (view === VIEWS.DUELING) return 'Dueling Room'
+    if (view === VIEWS.ADMIN) return 'Admin Dashboard'
+    if (view === VIEWS.WALLET) return 'Wallet'
     return 'Tic Tac Toe'
   }, [view])
 
@@ -67,6 +73,22 @@ function App() {
 
   function goDueling() {
     setView(VIEWS.DUELING)
+    setIsMenuOpen(false)
+  }
+
+  function goAdmin() {
+    setView(VIEWS.ADMIN)
+    setIsMenuOpen(false)
+  }
+
+  function goWallet() {
+    if (!isAuthed) {
+      setIsMenuOpen(false)
+      setView(VIEWS.CREATE)
+      setIsGateOpen(true)
+      return
+    }
+    setView(VIEWS.WALLET)
     setIsMenuOpen(false)
   }
 
@@ -177,6 +199,16 @@ function App() {
                     Edit Profile
                   </button>
 
+                  <button type="button" style={styles.menuAction} onClick={goWallet}>
+                    Wallet
+                  </button>
+
+                  {currentUser?.role === 'ADMIN' ? (
+                    <button type="button" style={styles.menuAction} onClick={goAdmin}>
+                      Admin Dashboard
+                    </button>
+                  ) : null}
+
                   <button
                     type="button"
                     style={{
@@ -241,6 +273,17 @@ function App() {
             currentUser={currentUser}
             onRequestLogin={openAuth}
             onUserUpdated={handleUserUpdated}
+          />
+        ) : null}
+
+        {view === VIEWS.ADMIN ? (
+          <AdminDashboard />
+        ) : null}
+
+        {view === VIEWS.WALLET ? (
+          <WalletPage
+            currentUser={currentUser}
+            onRequestLogin={openAuth}
           />
         ) : null}
       </main>
