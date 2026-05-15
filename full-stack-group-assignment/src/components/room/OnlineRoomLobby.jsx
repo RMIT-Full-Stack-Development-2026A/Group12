@@ -1,4 +1,10 @@
+import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { toAssetUrl } from '../../utils/gameUtils';
+import MailIconButton from '../chat/MailIconButton';
+import ChatPanel from '../chat/ChatPanel';
+import AvatarPopup from '../chat/AvatarPopup';
+import useChat from '../chat/useChat';
 
 const BOARD_STYLE_OPTIONS = [
   { value: '1', label: 'Classic' },
@@ -102,6 +108,18 @@ function OnlineRoomLobby({
   const currentMarkerLabel = currentPlayer?.displayMarker || marker;
   const currentMarkerColor = currentPlayer?.markerColor || '#000000';
 
+  const [chatOpen, setChatOpen] = useState(false);
+  const chat = useChat({
+    sessionId: sessionData?._id || '',
+    roomCode,
+    gameMode: 'ONLINE',
+    currentUserId,
+    isOpen: chatOpen,
+  });
+
+  const hostId = String(hostEntry?.userId?._id || hostEntry?.userId || '');
+  const guestId = String(guestEntry?.userId?._id || guestEntry?.userId || '');
+
   return (
     <div style={styles.card}>
       {/* Player header with real avatars */}
@@ -113,19 +131,25 @@ function OnlineRoomLobby({
         borderBottom: '1px solid #eee',
         marginBottom: 12,
       }}>
-        <PlayerAvatar
-          avatarUrl={hostInfo.avatarUrl}
-          username={hostInfo.username}
-          align="left"
-        />
+        <div style={{ position: 'relative' }}>
+          <PlayerAvatar
+            avatarUrl={hostInfo.avatarUrl}
+            username={hostInfo.username}
+            align="left"
+          />
+          <AvatarPopup popup={chat.popups[hostId]} />
+        </div>
         <div style={{ fontSize: 13, color: '#888', fontStyle: 'italic' }}>
           {hasTwoPlayers ? 'vs' : 'Waiting for Player 2...'}
         </div>
-        <PlayerAvatar
-          avatarUrl={hasTwoPlayers ? guestInfo.avatarUrl : ''}
-          username={hasTwoPlayers ? guestInfo.username : null}
-          align="right"
-        />
+        <div style={{ position: 'relative' }}>
+          <PlayerAvatar
+            avatarUrl={hasTwoPlayers ? guestInfo.avatarUrl : ''}
+            username={hasTwoPlayers ? guestInfo.username : null}
+            align="right"
+          />
+          <AvatarPopup popup={chat.popups[guestId]} />
+        </div>
       </div>
 
       <div style={styles.resultBox}>
@@ -157,6 +181,15 @@ function OnlineRoomLobby({
         <p><strong>Your Marker:</strong> <span style={{ color: currentMarkerColor, fontWeight: 700 }}>{currentMarkerLabel}</span></p>
         <p><strong>Session ID:</strong> {sessionData?._id || 'N/A'}</p>
         <p><strong>Role:</strong> {isHost ? 'Host' : 'Guest'}</p>
+        {chat.enabled ? (
+          <div style={{ display: 'flex', justifyContent: 'center', marginTop: 8 }}>
+            <MailIconButton
+              isOpen={chatOpen}
+              unreadCount={chat.unreadCount}
+              onClick={() => setChatOpen((o) => !o)}
+            />
+          </div>
+        ) : null}
       </div>
 
       {/* Board style selector */}
@@ -255,6 +288,21 @@ function OnlineRoomLobby({
         <p style={styles.waitingText}>Waiting for host to start</p>
       )}
 
+      {chat.enabled && chatOpen
+        ? createPortal(
+            <ChatPanel
+              isOpen={chatOpen}
+              onClose={() => setChatOpen(false)}
+              messages={chat.messages}
+              currentUserId={currentUserId}
+              onSendText={chat.sendText}
+              onSendSticker={chat.sendSticker}
+              error={chat.error}
+              inputDisabled={!hasTwoPlayers}
+            />,
+            document.body,
+          )
+        : null}
     </div>
   );
 }
