@@ -8,6 +8,13 @@ export const API_ROOT_URL = API_ORIGIN
 export const TOKEN_STORAGE_KEY =
   import.meta.env.VITE_TOKEN_STORAGE_KEY ?? 'auth_token'
 
+export const USER_STORAGE_KEY =
+  import.meta.env.VITE_USER_STORAGE_KEY ?? 'auth_user'
+
+export const PUBLIC_APP_URL =
+  import.meta.env.VITE_PUBLIC_APP_URL ??
+  'https://punctured-affirm-levitate.ngrok-free.dev'
+
 export const FALLBACK_COUNTRIES = [
   'Vietnam',
   'Australia',

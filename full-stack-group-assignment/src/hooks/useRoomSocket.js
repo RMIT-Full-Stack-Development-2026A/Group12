@@ -11,9 +11,14 @@ export default function useRoomSocket({
   setInfoMessage,
   onFetchSession,
   onRoomClosed,
+  onAdminStop,
 }) {
   const onRoomClosedRef = useRef(onRoomClosed);
+  const onAdminStopRef = useRef(onAdminStop);
+
   useEffect(() => { onRoomClosedRef.current = onRoomClosed; });
+  useEffect(() => { onAdminStopRef.current = onAdminStop; });
+
   // Host heartbeat: keep the waiting room alive while host is on the lobby page
   useEffect(() => {
     if (!roomCode || !isHost) return;
@@ -110,16 +115,34 @@ export default function useRoomSocket({
       if (onRoomClosedRef.current) onRoomClosedRef.current(data?.message || 'This room is closed, return to main menu.');
     };
 
+    const handleAdminNotification = (payload) => {
+      if (!payload) return;
+      const message = payload.message || 'Admin stopped this match.';
+      const reason = payload.reason || 'No reason provided';
+      
+      if (payload.action === 'stopped') {
+        setInfoMessage('');
+        setError('');
+
+        // Call the admin stop callback with reason to show modal
+        if (onAdminStopRef.current) {
+          onAdminStopRef.current({ reason, message });
+        }
+      }
+    };
+
     socket.on('room_updated', handleRoomUpdated);
     socket.on('room_started', handleRoomStarted);
     socket.on('session_updated', handleSessionUpdated);
     socket.on('room_closed', handleRoomClosed);
+    socket.on('admin_notification', handleAdminNotification);
 
     return () => {
       socket.off('room_updated', handleRoomUpdated);
       socket.off('room_started', handleRoomStarted);
       socket.off('session_updated', handleSessionUpdated);
       socket.off('room_closed', handleRoomClosed);
+      socket.off('admin_notification', handleAdminNotification);
       if (roomCode) {
         socket.emit('leave_room_channel', roomCode);
       } else {

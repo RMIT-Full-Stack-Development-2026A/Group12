@@ -29,7 +29,11 @@ async function createVNPay(req, res) {
 async function vnpayReturn(req, res) {
   const result = await paymentService.handleVNPayReturn(req.query);
 
-  const FRONTEND = process.env.FRONTEND_URL || 'http://localhost:5173';
+  const FRONTEND =
+    process.env.FRONTEND_LOCAL_BASE_URL ||
+    process.env.FRONTEND_URL ||
+    process.env.BASE_URL ||
+    'http://localhost:5173';
 
   if (result.success) {
     return res.redirect(

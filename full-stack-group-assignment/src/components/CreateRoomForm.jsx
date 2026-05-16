@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import GameBoard from '../components/GameBoard';
 import CreateGamePanel from './room/CreateGamePanel';
 import JoinRoomPanel from './room/JoinRoomPanel';
@@ -14,6 +14,9 @@ function CreateRoomForm({ currentUser, onRequireLogin, onExitToMenu, initialJoin
   const currentUserId = currentUser?._id || '';
   const currentUsername = currentUser?.username || '';
   const [roomClosedMessage, setRoomClosedMessage] = useState('');
+  const [adminStopNotification, setAdminStopNotification] = useState(null);
+  const [adminStopSeconds, setAdminStopSeconds] = useState(30);
+  const adminTimerRef = useRef(null);
 
   const {
     gameMode, setGameMode,
@@ -94,6 +97,10 @@ function CreateRoomForm({ currentUser, onRequireLogin, onExitToMenu, initialJoin
       setShowBoard(false);
       setError('');
       setInfoMessage('');
+    },
+    onAdminStop: (payload) => {
+      setAdminStopNotification(payload);
+      setShowBoard(false);
     },
   });
 
@@ -189,6 +196,78 @@ function CreateRoomForm({ currentUser, onRequireLogin, onExitToMenu, initialJoin
       alert('Share is not supported. Link copied instead.');
     }
   };
+
+  const handleAdminStopDismiss = () => {
+    if (adminTimerRef.current) {
+      clearInterval(adminTimerRef.current);
+      adminTimerRef.current = null;
+    }
+    setAdminStopNotification(null);
+    setAdminStopSeconds(30);
+    resetToCreateGame();
+    onExitToMenu?.();
+  };
+
+  useEffect(() => {
+    if (!adminStopNotification) return;
+    // start countdown
+    setAdminStopSeconds(30);
+    if (adminTimerRef.current) {
+      clearInterval(adminTimerRef.current);
+    }
+    adminTimerRef.current = setInterval(() => {
+      setAdminStopSeconds((s) => {
+        if (s <= 1) {
+          // finalize
+          if (adminTimerRef.current) {
+            clearInterval(adminTimerRef.current);
+            adminTimerRef.current = null;
+          }
+          handleAdminStopDismiss();
+          return 0;
+        }
+        return s - 1;
+      });
+    }, 1000);
+
+    return () => {
+      if (adminTimerRef.current) {
+        clearInterval(adminTimerRef.current);
+        adminTimerRef.current = null;
+      }
+    };
+  }, [adminStopNotification]);
+
+  if (adminStopNotification) {
+    return (
+      <div style={styles.page}>
+        <div style={styles.card}>
+          <div style={styles.adminStopOverlay}>
+            <div style={styles.adminStopModal}>
+              <h2 style={styles.adminStopTitle}>Match Stopped</h2>
+              <p style={styles.adminStopText}>
+                The match was stopped by an administrator.
+              </p>
+              <div style={styles.adminStopReason}>
+                <strong>Reason:</strong>
+                <p>{adminStopNotification.reason}</p>
+              </div>
+              <p style={styles.adminStopAutoRedirect}>
+                You will be redirected to home in {adminStopSeconds} second{adminStopSeconds === 1 ? '' : 's'}...
+              </p>
+              <button
+                type="button"
+                style={styles.adminStopButton}
+                onClick={handleAdminStopDismiss}
+              >
+                OK, Go to Home
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (roomClosedMessage) {
     return (
@@ -367,6 +446,59 @@ const styles = {
   roomInfo: { textAlign: 'center', marginBottom: '28px', lineHeight: '1.55', fontSize: '14px' },
   startButton: { display: 'block', margin: '0 auto', minWidth: '120px', padding: '14px 24px', border: '2px solid #888', borderRadius: '6px', backgroundColor: '#f0f0f0', fontSize: '14px' },
   waitingText: { textAlign: 'center', fontWeight: '600', color: '#555', marginTop: '12px' },
+  adminStopOverlay: {
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    minHeight: '60vh',
+  },
+  adminStopModal: {
+    backgroundColor: '#fff',
+    border: '3px solid #d84315',
+    borderRadius: '8px',
+    padding: '32px 24px',
+    maxWidth: '500px',
+    textAlign: 'center',
+    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+  },
+  adminStopTitle: {
+    fontSize: '24px',
+    fontWeight: '700',
+    color: '#d84315',
+    marginTop: 0,
+    marginBottom: '12px',
+  },
+  adminStopText: {
+    fontSize: '16px',
+    color: '#333',
+    marginBottom: '16px',
+  },
+  adminStopReason: {
+    backgroundColor: '#fff3e0',
+    border: '1px solid #ffb74d',
+    borderRadius: '6px',
+    padding: '12px 16px',
+    margin: '16px 0',
+    textAlign: 'left',
+  },
+  adminStopAutoRedirect: {
+    fontSize: '13px',
+    color: '#666',
+    marginTop: '16px',
+    marginBottom: '20px',
+    fontStyle: 'italic',
+  },
+  adminStopButton: {
+    minWidth: '140px',
+    padding: '12px 24px',
+    border: '2px solid #d84315',
+    borderRadius: '6px',
+    backgroundColor: '#d84315',
+    color: '#fff',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: '600',
+  },
 };
 
 export default CreateRoomForm;

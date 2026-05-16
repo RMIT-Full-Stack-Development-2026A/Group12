@@ -6,6 +6,11 @@ const User = require('../models/user');
 const { sendSubscriptionEmail } = require('./email.service');
 const transactionService = require('./transaction.service');
 
+const FRONTEND_BASE_URL =
+  process.env.FRONTEND_LOCAL_BASE_URL ||
+  process.env.FRONTEND_URL ||
+  process.env.BASE_URL ||
+  'http://localhost:5173';
 
 // =====================
 // CREATE WALLET PAYMENT
@@ -18,7 +23,7 @@ async function createVNPayPayment(userId, amount) {
   const orderId = uuidv4();
 
   const paymentUrl =
-    `${process.env.BASE_URL}/fake-vnpay?orderId=${orderId}&amount=${amount}`;
+    `${FRONTEND_BASE_URL}/fake-vnpay?orderId=${orderId}&amount=${amount}`;
 
   await paymentRepo.createPayment({
     userId,
@@ -42,7 +47,7 @@ async function createSubscriptionPayment(userId) {
   const PRICE = 100000;
 
   const paymentUrl =
-    `${process.env.BASE_URL}/qr-payment?orderId=${orderId}&amount=${PRICE}`;
+    `${FRONTEND_BASE_URL}/qr-payment?orderId=${orderId}&amount=${PRICE}`;
 
   await paymentRepo.createPayment({
     userId,
@@ -127,8 +132,11 @@ async function handleVNPayReturn(query) {
 
       const user = await User.findByIdAndUpdate(
         payment.userId,
-        { isPremium: true },
-        { returnDocument: 'after' }
+        {
+          isPremium: true,
+          premiumExpiryDate: endDate
+        },
+        { new: true }
       );
 
       const wallet = await Wallet.findOne({

@@ -9,7 +9,7 @@ import {
 } from '../services/subscriptionService'
 import { getUserProfile } from '../services/userProfileService'
 
-function WalletPage({ currentUser, onRequestLogin }) {
+function WalletPage({ currentUser, authReady, onRequestLogin }) {
   const userId = currentUser?._id
 
   const [loading, setLoading] = useState(false)
@@ -23,6 +23,10 @@ function WalletPage({ currentUser, onRequestLogin }) {
   const [profile, setProfile] = useState(null)
 
   useEffect(() => {
+    if (!authReady) {
+      return
+    }
+
     if (!userId) {
       if (onRequestLogin) {
         onRequestLogin()

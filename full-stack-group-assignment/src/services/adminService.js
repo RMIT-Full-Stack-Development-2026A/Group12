@@ -1,12 +1,11 @@
 import { API_ROOT_URL, TOKEN_STORAGE_KEY } from '../config/appConfig'
 
 function getHeaders() {
-  const token = localStorage.getItem(TOKEN_STORAGE_KEY)
+  const token = sessionStorage.getItem(TOKEN_STORAGE_KEY)
 
-  return {
-    'Content-Type': 'application/json',
-    Authorization: `Bearer ${token}`
-  }
+  const headers = { 'Content-Type': 'application/json' }
+  if (token) headers.Authorization = `Bearer ${token}`
+  return headers
 }
 
 async function handleResponse(res) {
@@ -70,6 +69,25 @@ export async function unsuspendUser(userId) {
 export async function getActiveSubscriptions() {
   const res = await fetch(`${API_ROOT_URL}/admin/subscriptions`, {
     headers: getHeaders()
+  })
+
+  return handleResponse(res)
+}
+
+// Match endpoints
+export async function getOngoingMatches() {
+  const res = await fetch(`${API_ROOT_URL}/admin/matches`, {
+    headers: getHeaders()
+  })
+
+  return handleResponse(res)
+}
+
+export async function stopMatch(matchId, reason) {
+  const res = await fetch(`${API_ROOT_URL}/admin/matches/${matchId}/stop`, {
+    method: 'POST',
+    headers: getHeaders(),
+    body: JSON.stringify({ reason })
   })
 
   return handleResponse(res)

@@ -7,6 +7,7 @@ function AdminTransactionsSection() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [pagination, setPagination] = useState(null)
+  const [displayCount, setDisplayCount] = useState(20)
 
   useEffect(() => {
     loadData()
@@ -57,6 +58,9 @@ function AdminTransactionsSection() {
     }).format(amount)
   }
 
+  const visibleTransactions = transactions.slice(0, displayCount)
+  const hasMoreTransactions = visibleTransactions.length < transactions.length
+
   if (loading) {
     return <div style={styles.message}>Loading transactions...</div>
   }
@@ -101,7 +105,7 @@ function AdminTransactionsSection() {
             </tr>
           </thead>
           <tbody>
-            {transactions.map((transaction) => (
+            {visibleTransactions.map((transaction) => (
               <tr key={transaction._id} style={styles.row}>
                 <td style={styles.td}>
                   {transaction.userId?.username || 'N/A'}
@@ -157,9 +161,30 @@ function AdminTransactionsSection() {
         </table>
       </div>
 
-      {transactions.length === 0 && !loading && (
+      {visibleTransactions.length === 0 && !loading && (
         <div style={styles.message}>No transactions found</div>
       )}
+
+      <div style={styles.tableFooter}>
+        {hasMoreTransactions ? (
+          <>
+            <button
+              type="button"
+              style={styles.paginationBtn}
+              onClick={() => setDisplayCount((prev) => prev + 20)}
+            >
+              Show more
+            </button>
+            <button
+              type="button"
+              style={styles.paginationBtn}
+              onClick={() => setDisplayCount(transactions.length)}
+            >
+              Show all
+            </button>
+          </>
+        ) : null}
+      </div>
     </div>
   )
 }
@@ -270,6 +295,20 @@ const styles = {
     textAlign: 'center',
     color: '#666',
     fontSize: 16,
+  },
+  tableFooter: {
+    display: 'flex',
+    gap: 10,
+    marginTop: 16,
+    flexWrap: 'wrap',
+  },
+  paginationBtn: {
+    padding: '10px 14px',
+    border: '2px solid #7c7c7c',
+    borderRadius: 6,
+    backgroundColor: '#ffffff',
+    cursor: 'pointer',
+    fontWeight: 700,
   },
 }
 

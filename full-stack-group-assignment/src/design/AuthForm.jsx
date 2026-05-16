@@ -5,6 +5,7 @@ import {
   API_ROOT_URL,
   FALLBACK_COUNTRIES,
   TOKEN_STORAGE_KEY,
+  USER_STORAGE_KEY,
 } from '../config/appConfig'
 
 const AUTH_URL = `${API_ROOT_URL}/auth`
@@ -51,6 +52,18 @@ function AuthForm({ onAuthSuccess, onClose }) {
     }
 
     sessionStorage.setItem(TOKEN_STORAGE_KEY, token)
+  }
+
+  function saveUser(user) {
+    if (!user) {
+      return
+    }
+
+    try {
+      sessionStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user))
+    } catch {
+      // Ignore storage failures.
+    }
   }
 
   function getAuthorizationHeader() {
@@ -171,6 +184,7 @@ function AuthForm({ onAuthSuccess, onClose }) {
     }
 
     saveToken(token)
+    saveUser(user)
     verifyProtectedSession(user?._id)
 
     if (onAuthSuccess) {
@@ -208,6 +222,7 @@ function AuthForm({ onAuthSuccess, onClose }) {
     }
 
     saveToken(token)
+    saveUser(user)
     verifyProtectedSession(user?._id)
 
     if (onAuthSuccess) {

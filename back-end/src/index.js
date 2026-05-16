@@ -42,6 +42,48 @@ app.use('/api/payment', paymentRoutes);
 app.use('/api/transaction', transactionRoutes);
 app.use('/api/admin', adminRoutes);
 
+app.get('/fake-bank', (_, res) => {
+  res.send(`
+    <html>
+      <body style="text-align:center;margin-top:80px;font-family:sans-serif">
+        <h1>🏦 Fake Bank App</h1>
+
+        <script>
+          const params = new URLSearchParams(window.location.search);
+          const orderId = params.get('orderId');
+          const amount = params.get('amount');
+
+          document.write("<p>Transfer to: 123456789</p>");
+          document.write("<p>Amount: " + amount + " VND</p>");
+          document.write("<p>Content: " + orderId + "</p>");
+
+          function confirmPay() {
+            window.location.href =
+              "/api/payment/vnpay-return" +
+              "?vnp_TxnRef=" + orderId +
+              "&vnp_ResponseCode=00&type=qr";
+          }
+        </script>
+
+        <button onclick="confirmPay()">
+          ✅ Confirm Payment
+        </button>
+      </body>
+    </html>
+  `);
+});
+
+app.get('/wallet', (_, res) => {
+  res.send(`
+    <html>
+      <body style="text-align:center;margin-top:100px;font-family:sans-serif">
+        <h1>✅ Payment Successful</h1>
+        <p>Your premium subscription is now active.</p>
+      </body>
+    </html>
+  `);
+});
+
 function startServer() {
   const server = http.createServer(app);
 

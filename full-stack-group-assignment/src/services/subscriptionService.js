@@ -1,12 +1,11 @@
 import { API_ROOT_URL, TOKEN_STORAGE_KEY } from '../config/appConfig'
 
 function getHeaders() {
-  const token = localStorage.getItem(TOKEN_STORAGE_KEY)
+  const token = sessionStorage.getItem(TOKEN_STORAGE_KEY)
 
-  return {
-    'Content-Type': 'application/json',
-    Authorization: `Bearer ${token}`
-  }
+  const headers = { 'Content-Type': 'application/json' }
+  if (token) headers.Authorization = `Bearer ${token}`
+  return headers
 }
 
 async function handleResponse(res) {

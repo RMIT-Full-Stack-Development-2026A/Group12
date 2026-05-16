@@ -1,6 +1,9 @@
+const { getIO } = require('../socket');
 const User = require('../models/user');
 const Subscription = require('../models/subscription');
 const Transaction = require('../models/transaction');
+const roomRepo = require('../repositories/gameRoom.repository');
+const sessionRepo = require('../repositories/gameSession.repository');
 
 
 // ================= USERS =================
@@ -21,6 +24,84 @@ const getAllUsers = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch users',
+      error: error.message
+    });
+  }
+};
+
+const getOngoingMatches = async (req, res) => {
+  try {
+    const sessions = await sessionRepo.findOngoingMatches();
+
+    res.status(200).json({
+      success: true,
+      data: sessions,
+      total: sessions.length
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch ongoing matches',
+      error: error.message
+    });
+  }
+};
+
+const stopMatch = async (req, res) => {
+  try {
+    const { matchId } = req.params;
+    const { reason = 'Admin stopped the match' } = req.body;
+
+    const session = await sessionRepo.findById(matchId);
+    if (!session) {
+      return res.status(404).json({ success: false, message: 'Match not found' });
+    }
+
+    if (session.status === 'FINISHED' || session.status === 'WIN' || session.status === 'DRAW') {
+      return res.status(400).json({ success: false, message: 'Match is already finished' });
+    }
+
+    const updatedSession = await sessionRepo.finishSession(matchId, {
+      status: 'FINISHED',
+      result: 'ABORT',
+      winner: null
+    });
+
+    if (session.roomCode) {
+      const room = await roomRepo.findByRoomCode(session.roomCode);
+      if (room) {
+        room.status = 'FINISHED';
+        room.currentSessionId = null;
+        room.replayRequests = [];
+        await roomRepo.save(room);
+      }
+    }
+
+    try {
+      const io = getIO();
+      const notification = {
+        action: 'stopped',
+        sessionId: matchId,
+        reason,
+        message: `Admin stopped this match: ${reason}`
+      };
+      if (session.roomCode) {
+        io.to(session.roomCode).emit('admin_notification', notification);
+      }
+      io.to(`session:${matchId}`).emit('admin_notification', notification);
+    } catch (e) {
+      // ignore socket errors
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Match stopped successfully',
+      data: updatedSession
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to stop match',
       error: error.message
     });
   }
@@ -237,6 +318,8 @@ const getTransactionStats = async (req, res) => {
 
 module.exports = {
   getAllUsers,
+  getOngoingMatches,
+  stopMatch,
   getUserById,
   deleteUser,
   suspendUser,

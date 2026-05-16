@@ -5,13 +5,10 @@ function AdminSubscriptionsSection() {
   const [subscriptions, setSubscriptions] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+  const [displayCount, setDisplayCount] = useState(20)
 
   useEffect(() => {
     loadSubscriptions()
-
-    const interval = setInterval(loadSubscriptions, 5000)
-
-    return () => clearInterval(interval)
   }, [])
 
   async function loadSubscriptions() {
@@ -30,6 +27,9 @@ function AdminSubscriptionsSection() {
       setLoading(false)
     }
   }
+
+  const visibleSubscriptions = subscriptions.slice(0, displayCount)
+  const hasMoreSubscriptions = visibleSubscriptions.length < subscriptions.length
 
   if (loading) {
     return <div style={styles.message}>Loading subscriptions...</div>
@@ -61,7 +61,7 @@ function AdminSubscriptionsSection() {
             </tr>
           </thead>
           <tbody>
-            {subscriptions.map((sub) => {
+            {visibleSubscriptions.map((sub) => {
               const endDate = new Date(sub.endDate)
               const today = new Date()
               const daysRemaining = Math.ceil(
@@ -112,9 +112,30 @@ function AdminSubscriptionsSection() {
         </table>
       </div>
 
-      {subscriptions.length === 0 && !loading && (
+      {visibleSubscriptions.length === 0 && !loading && (
         <div style={styles.message}>No active subscriptions found</div>
       )}
+
+      <div style={styles.tableFooter}>
+        {hasMoreSubscriptions ? (
+          <>
+            <button
+              type="button"
+              style={styles.paginationBtn}
+              onClick={() => setDisplayCount((prev) => prev + 20)}
+            >
+              Show more
+            </button>
+            <button
+              type="button"
+              style={styles.paginationBtn}
+              onClick={() => setDisplayCount(subscriptions.length)}
+            >
+              Show all
+            </button>
+          </>
+        ) : null}
+      </div>
     </div>
   )
 }
@@ -212,6 +233,20 @@ const styles = {
     textAlign: 'center',
     color: '#666',
     fontSize: 16,
+  },
+  tableFooter: {
+    display: 'flex',
+    gap: 10,
+    marginTop: 16,
+    flexWrap: 'wrap',
+  },
+  paginationBtn: {
+    padding: '10px 14px',
+    border: '2px solid #7c7c7c',
+    borderRadius: 6,
+    backgroundColor: '#ffffff',
+    cursor: 'pointer',
+    fontWeight: 700,
   },
 }
 

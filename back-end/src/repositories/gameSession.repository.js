@@ -42,6 +42,22 @@ const finishSession = (sessionId, payload) => {
   );
 };
 
+const deleteById = (sessionId) => {
+  return GameSession.deleteOne({ _id: sessionId });
+};
+
+const findOngoingMatches = () => {
+  return GameSession.find({
+    gameType: 'ONLINE',
+    status: { $in: ['WAITING', 'PLAYING'] },
+    endTime: null
+  })
+    .populate('player1Id', 'username email')
+    .populate('player2Id', 'username email')
+    .sort({ createdAt: -1 })
+    .lean();
+};
+
 const findStalePlayingSessions = (cutoffTime) => {
   return GameSession.find({
     status: 'PLAYING',
@@ -98,6 +114,8 @@ module.exports = {
   findAllByRoomId,
   countByRoomId,
   finishSession,
+  deleteById,
+  findOngoingMatches,
   findStalePlayingSessions,
   abortSession,
   findActiveSoloByUserId,

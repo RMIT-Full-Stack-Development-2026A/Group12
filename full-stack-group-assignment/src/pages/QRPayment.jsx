@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { API_ROOT_URL } from '../config/appConfig';
+import { API_ROOT_URL, PUBLIC_APP_URL } from '../config/appConfig';
 
 function QRPayment() {
   const [orderId, setOrderId] = useState('');
@@ -14,8 +14,9 @@ function QRPayment() {
   }, []);
 
   // generate QR
-  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(
-    `${window.location.origin}/fake-bank?orderId=${orderId}&amount=${amount}`
+  const qrUrl =
+  `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(
+    `${PUBLIC_APP_URL}/fake-bank?orderId=${orderId}&amount=${amount}`
   )}`;
 
   // auto check payment

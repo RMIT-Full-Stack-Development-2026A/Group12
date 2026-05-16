@@ -58,6 +58,7 @@ function toUserProfileDTO(user) {
     country: user.country,
     avatarUrl: user.avatarUrl || null,
     isPremium: Boolean(user.isPremium),
+    premiumExpiryDate: user.premiumExpiryDate || null,
     role: user.role
   };
 }

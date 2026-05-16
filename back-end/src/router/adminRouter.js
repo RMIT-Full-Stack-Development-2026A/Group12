@@ -5,6 +5,8 @@ const { JWT_SECRET } = require('../config/jwtConfig');
 const User = require('../models/user');
 const {
   getAllUsers,
+  getOngoingMatches,
+  stopMatch,
   getUserById,
   deleteUser,
   suspendUser,
@@ -71,6 +73,10 @@ router.get('/users/:userId', getUserById);
 router.delete('/users/:userId', deleteUser);
 router.patch('/users/:userId/suspend', suspendUser);
 router.patch('/users/:userId/unsuspend', unsuspendUser);
+
+// Match management routes
+router.get('/matches', getOngoingMatches);
+router.post('/matches/:matchId/stop', stopMatch);
 
 // Subscription management routes
 router.get('/subscriptions', getActiveSubscriptions);

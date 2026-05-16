@@ -9,6 +9,8 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react()],
     server: {
+      // Allow ngrok-hosted frontends to access the dev server
+      allowedHosts: ['punctured-affirm-levitate.ngrok-free.dev', 'localhost'],
       proxy: {
         '/api': {
           target,

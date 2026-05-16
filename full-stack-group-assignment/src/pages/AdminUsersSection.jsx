@@ -6,19 +6,16 @@ import {
   unsuspendUser,
 } from '../services/adminService'
 
-function AdminUsersSection() {
+function AdminUsersSection({ currentUser }) {
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [actionLoading, setActionLoading] = useState({})
   const [successMessage, setSuccessMessage] = useState('')
+  const [displayCount, setDisplayCount] = useState(20)
 
   useEffect(() => {
     loadUsers()
-
-    const interval = setInterval(loadUsers, 5000)
-
-    return () => clearInterval(interval)
   }, [])
 
   async function loadUsers() {
@@ -100,6 +97,11 @@ function AdminUsersSection() {
     }
   }
 
+  const filteredUsers = users.filter((user) => user.role !== 'ADMIN')
+
+  const visibleUsers = filteredUsers.slice(0, displayCount)
+  const hasMoreUsers = visibleUsers.length < filteredUsers.length
+
   if (loading) {
     return <div style={styles.message}>Loading users...</div>
   }
@@ -126,7 +128,7 @@ function AdminUsersSection() {
             </tr>
           </thead>
           <tbody>
-            {users.map((user) => (
+            {visibleUsers.map((user) => (
               <tr key={user._id} style={styles.row}>
                 <td style={styles.td}>{user.username}</td>
                 <td style={styles.td}>{user.email}</td>
@@ -201,9 +203,30 @@ function AdminUsersSection() {
         </table>
       </div>
 
-      {users.length === 0 && !loading && (
+      {visibleUsers.length === 0 && !loading && (
         <div style={styles.message}>No users found</div>
       )}
+
+      <div style={styles.tableFooter}>
+        {hasMoreUsers ? (
+          <>
+            <button
+              type="button"
+              style={styles.paginationBtn}
+              onClick={() => setDisplayCount((prev) => prev + 20)}
+            >
+              Show more
+            </button>
+            <button
+              type="button"
+              style={styles.paginationBtn}
+              onClick={() => setDisplayCount(filteredUsers.length)}
+            >
+              Show all
+            </button>
+          </>
+        ) : null}
+      </div>
     </div>
   )
 }
@@ -306,6 +329,20 @@ const styles = {
     fontWeight: 600,
     fontSize: 12,
     transition: 'all 0.2s ease',
+  },
+  tableFooter: {
+    display: 'flex',
+    gap: 10,
+    marginTop: 16,
+    flexWrap: 'wrap',
+  },
+  paginationBtn: {
+    padding: '10px 14px',
+    border: '2px solid #7c7c7c',
+    borderRadius: 6,
+    backgroundColor: '#ffffff',
+    cursor: 'pointer',
+    fontWeight: 700,
   },
   suspendBtn: {
     backgroundColor: '#fff3e0',

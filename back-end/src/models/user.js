@@ -40,6 +40,10 @@ const UserSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  premiumExpiryDate: {
+    type: Date,
+    default: null
+  },
   failedLogins: {
     type: Number,
     default: 0

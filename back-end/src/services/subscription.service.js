@@ -50,7 +50,10 @@ async function subscribeWithWallet(userId) {
     status: 'SUCCESS'
   });
 
-  await User.findByIdAndUpdate(userId, { isPremium: true });
+  await User.findByIdAndUpdate(userId, {
+    isPremium: true,
+    premiumExpiryDate: endDate
+  });
 
   const user = await User.findById(userId);
 

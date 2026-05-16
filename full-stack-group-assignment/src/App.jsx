@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import AuthForm from './design/AuthForm'
 import LoginRequiredPopup from './components/LoginRequiredPopup'
 import CreateRoomPage from './pages/CreateRoomPage'
@@ -8,7 +8,9 @@ import ArenaPage from './pages/ArenaPage'
 import DuelingRoomPage from './pages/DuelingRoomPage'
 import AdminDashboard from './pages/AdminDashboard'
 import WalletPage from './pages/WalletPage'
-import { TOKEN_STORAGE_KEY } from './config/appConfig'
+import FakeVNPay from './pages/FakeVNPay'
+import QRPayment from './pages/QRPayment'
+import { TOKEN_STORAGE_KEY, USER_STORAGE_KEY } from './config/appConfig'
 import { toAssetUrl } from './utils/gameUtils'
 
 const VIEWS = {
@@ -20,11 +22,48 @@ const VIEWS = {
   DUELING: 'dueling',
   ADMIN: 'admin',
   WALLET: 'wallet',
+  FAKE_VNPAY: 'fake_vnpay',
+  QR: 'qr',
+  Fake_BANK: 'fake_bank',
 }
 
 function App() {
   const [currentUser, setCurrentUser] = useState(null)
   const [view, setView] = useState(VIEWS.HOME)
+  const [isSessionRestored, setIsSessionRestored] = useState(false)
+
+  function getViewFromPath(path) {
+    if (path === '/wallet') return VIEWS.WALLET
+    if (path.startsWith('/fake-vnpay')) return VIEWS.FAKE_VNPAY
+    if (path.startsWith('/qr-payment')) return VIEWS.QR
+    if (path.startsWith('/fake-bank')) return VIEWS.Fake_BANK
+    return VIEWS.HOME
+  }
+
+  function getStoredUser() {
+    const raw = sessionStorage.getItem(USER_STORAGE_KEY)
+    if (!raw) return null
+
+    try {
+      return JSON.parse(raw)
+    } catch {
+      return null
+    }
+  }
+
+  useEffect(() => {
+    const token = sessionStorage.getItem(TOKEN_STORAGE_KEY)
+    const savedUser = token ? getStoredUser() : null
+
+    if (token && savedUser) {
+      setCurrentUser(savedUser)
+    } else {
+      sessionStorage.removeItem(USER_STORAGE_KEY)
+    }
+
+    setView(getViewFromPath(window.location.pathname))
+    setIsSessionRestored(true)
+  }, [])
   const [isGateOpen, setIsGateOpen] = useState(false)
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isGamePlaying, setIsGamePlaying] = useState(false)
@@ -41,7 +80,7 @@ function App() {
     if (view === VIEWS.ARENA) return 'Arena'
     if (view === VIEWS.DUELING) return 'Dueling Room'
     if (view === VIEWS.ADMIN) return 'Admin Dashboard'
-    if (view === VIEWS.WALLET) return 'Wallet'
+    if (view === VIEWS.WALLET) return 'Wallet & Subscription'
     return 'Tic Tac Toe'
   }, [view])
 
@@ -125,6 +164,7 @@ function App() {
 
   function handleLogout() {
     sessionStorage.removeItem(TOKEN_STORAGE_KEY)
+    sessionStorage.removeItem(USER_STORAGE_KEY)
     setCurrentUser(null)
     setIsGateOpen(false)
     setIsMenuOpen(false)
@@ -164,6 +204,14 @@ function App() {
               <button type="button" style={styles.navBtn} onClick={goArena}>
                 Arena
               </button>
+              <button type="button" style={styles.navBtn} onClick={goWallet}>
+                Wallet & Subscription
+              </button>
+              {currentUser?.role === 'ADMIN' ? (
+                <button type="button" style={styles.navBtn} onClick={goAdmin}>
+                  Admin Dashboard
+                </button>
+              ) : null}
             </>
           ) : null}
         </div>
@@ -198,17 +246,6 @@ function App() {
                   <button type="button" style={styles.menuAction} onClick={goProfile}>
                     Edit Profile
                   </button>
-
-                  <button type="button" style={styles.menuAction} onClick={goWallet}>
-                    Wallet
-                  </button>
-
-                  {currentUser?.role === 'ADMIN' ? (
-                    <button type="button" style={styles.menuAction} onClick={goAdmin}>
-                      Admin Dashboard
-                    </button>
-                  ) : null}
-
                   <button
                     type="button"
                     style={{
@@ -277,15 +314,23 @@ function App() {
         ) : null}
 
         {view === VIEWS.ADMIN ? (
-          <AdminDashboard />
+          <AdminDashboard currentUser={currentUser} />
         ) : null}
 
         {view === VIEWS.WALLET ? (
           <WalletPage
             currentUser={currentUser}
+            authReady={isSessionRestored}
             onRequestLogin={openAuth}
           />
         ) : null}
+                {view === VIEWS.FAKE_VNPAY ? (
+            <FakeVNPay />
+        ) : null}
+
+        {view === VIEWS.QR ? <QRPayment /> : null}
+
+        {view === VIEWS.FAKE_BANK ? <FakeBank /> : null}
       </main>
 
       <LoginRequiredPopup

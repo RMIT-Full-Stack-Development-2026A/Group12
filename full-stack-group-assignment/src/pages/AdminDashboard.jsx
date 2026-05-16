@@ -2,14 +2,16 @@ import { useState, useEffect } from 'react'
 import AdminUsersSection from './AdminUsersSection'
 import AdminSubscriptionsSection from './AdminSubscriptionsSection'
 import AdminTransactionsSection from './AdminTransactionsSection'
+import AdminMatchesSection from './AdminMatchesSection'
 
 const SECTIONS = {
   USERS: 'users',
   SUBSCRIPTIONS: 'subscriptions',
   TRANSACTIONS: 'transactions',
+  MATCHES: 'matches',
 }
 
-function AdminDashboard() {
+function AdminDashboard({ currentUser }) {
   const [activeSection, setActiveSection] = useState(SECTIONS.USERS)
 
   return (
@@ -45,14 +47,24 @@ function AdminDashboard() {
           >
             Transactions
           </button>
+          <button
+            style={{
+              ...styles.menuItem,
+              ...(activeSection === SECTIONS.MATCHES ? styles.menuItemActive : {}),
+            }}
+            onClick={() => setActiveSection(SECTIONS.MATCHES)}
+          >
+            Ongoing Matches
+          </button>
         </nav>
       </aside>
 
       {/* Main Content */}
       <main style={styles.content}>
-        {activeSection === SECTIONS.USERS && <AdminUsersSection />}
+        {activeSection === SECTIONS.USERS && <AdminUsersSection currentUser={currentUser} />}
         {activeSection === SECTIONS.SUBSCRIPTIONS && <AdminSubscriptionsSection />}
         {activeSection === SECTIONS.TRANSACTIONS && <AdminTransactionsSection />}
+        {activeSection === SECTIONS.MATCHES && <AdminMatchesSection />}
       </main>
     </div>
   )
