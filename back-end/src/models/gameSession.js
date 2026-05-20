@@ -88,7 +88,7 @@
 
 const mongoose = require('mongoose');
 
-const ALLOWED_MARKERS = ['X', 'O', 'A', 'B', '△', '○'];
+const ALLOWED_MARKERS = ['X', 'O', 'A', 'B', '△', '○', '★', '❤', '☯'];
 
 const MoveSchema = new mongoose.Schema({
   moveNumber: Number,

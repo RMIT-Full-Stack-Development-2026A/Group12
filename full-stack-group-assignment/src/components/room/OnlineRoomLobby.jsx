@@ -10,6 +10,8 @@ const BOARD_STYLE_OPTIONS = [
   { value: '1', label: 'Classic' },
   { value: '2', label: 'Aurora' },
   { value: '3', label: 'Contrast' },
+  { value: '4', label: 'Midnight (VIP)', vip: true },
+  { value: '5', label: 'Emerald Glow (VIP)', vip: true },
 ];
 
 function PlayerAvatar({ avatarUrl, username, align = 'left' }) {
@@ -193,20 +195,29 @@ function OnlineRoomLobby({
       </div>
 
       {/* Board style selector */}
-      {setSelectedStyleId && (
-        <div style={styles.row}>
-          <div style={styles.labelBox}>Board style :</div>
-          <select
-            value={selectedStyleId || '1'}
-            onChange={(e) => setSelectedStyleId(e.target.value)}
-            style={styles.select}
-          >
-            {BOARD_STYLE_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
-            ))}
-          </select>
-        </div>
-      )}
+      {setSelectedStyleId && (() => {
+        const availableOptions = currentUser?.isPremium
+          ? BOARD_STYLE_OPTIONS
+          : BOARD_STYLE_OPTIONS.filter((opt) => !opt.vip);
+        const activeValue = availableOptions.some((opt) => String(opt.value) === String(selectedStyleId))
+          ? selectedStyleId
+          : '1';
+
+        return (
+          <div style={styles.row}>
+            <div style={styles.labelBox}>Board style :</div>
+            <select
+              value={activeValue}
+              onChange={(e) => setSelectedStyleId(e.target.value)}
+              style={styles.select}
+            >
+              {availableOptions.map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+          </div>
+        );
+      })()}
 
       {error && <p style={styles.error}>{error}</p>}
       {infoMessage && <p style={styles.info}>{infoMessage}</p>}

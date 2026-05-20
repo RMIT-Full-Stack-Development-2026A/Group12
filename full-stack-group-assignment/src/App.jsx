@@ -238,7 +238,12 @@ function App() {
                     <div style={styles.avatarFallback} aria-label="Default avatar" />
                   )}
                 </div>
-                <div style={styles.menuUsername}>{displayName}</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={styles.menuUsername}>{displayName}</div>
+                  {currentUser?.isPremium ? (
+                    <div style={styles.vipBadge} aria-label="VIP subscriber">★ VIP</div>
+                  ) : null}
+                </div>
               </div>
 
               {isAuthed ? (
@@ -441,6 +446,14 @@ const styles = {
     fontWeight: 700,
     color: '#333',
     fontSize: 15,
+  },
+  vipBadge: {
+    background: '#ffd54f',
+    color: '#5b3e00',
+    padding: '4px 8px',
+    borderRadius: 6,
+    fontWeight: 700,
+    fontSize: 12,
   },
   menuAction: {
     border: 'none',

@@ -18,6 +18,10 @@ const PaymentSchema = new mongoose.Schema({
   },
   paymentUrl: {
     type: String
+  },
+  description: {
+    type: String,
+    default: ''
   }
 }, { timestamps: true });
 

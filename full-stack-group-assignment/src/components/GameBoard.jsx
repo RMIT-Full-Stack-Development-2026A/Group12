@@ -12,12 +12,14 @@ const BOARD_STYLE_THEMES = {
   1: { surface: '#ffffff', border: '#7c7c7c', accent: '#4a4a4a', soft: '#f5f5f5' },
   2: { surface: '#eef6ff', border: '#2563eb', accent: '#1d4ed8', soft: '#dbeafe' },
   3: { surface: '#fff7ed', border: '#f97316', accent: '#c2410c', soft: '#ffedd5' },
+  4: { surface: '#0f172a', border: '#475569', accent: '#60a5fa', soft: '#c7d2fe' },
+  5: { surface: '#ecfdf5', border: '#047857', accent: '#065f46', soft: '#d1fae5' },
 };
 
 const BOT_NAME_BY_LEVEL = { easy: 'Easy Bot', medium: 'Medium Bot', hard: 'Hard Bot' };
 function getStyleId(value) {
   const n = Number(value);
-  return [1, 2, 3].includes(n) ? n : 1;
+  return [1, 2, 3, 4, 5].includes(n) ? n : 1;
 }
 
 function getStyleTheme(value) {

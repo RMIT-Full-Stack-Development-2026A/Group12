@@ -90,7 +90,7 @@
 
 const mongoose = require('mongoose');
 
-const ALLOWED_MARKERS = ['X', 'O', 'A', 'B', '△', '○'];
+const ALLOWED_MARKERS = ['X', 'O', 'A', 'B', '△', '○', '★', '❤', '☯'];
 const ALLOWED_MARKER_COLORS = ['#000000', '#2563eb', '#dc2626', '#059669', '#d97706', '#7c3aed', '#0f766e'];
 
 const PlayerSchema = new mongoose.Schema({

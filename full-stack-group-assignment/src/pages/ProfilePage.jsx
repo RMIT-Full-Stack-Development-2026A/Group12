@@ -249,6 +249,9 @@ function ProfilePage({ currentUser, onRequestLogin, onUserUpdated }) {
     <div style={styles.page}>
       <div style={styles.card}>
         <h2 style={styles.title}>User Profile</h2>
+        {((profile && profile.isPremium) || currentUser?.isPremium) ? (
+          <div style={styles.vipProfileBadge}>★ VIP Subscriber</div>
+        ) : null}
 
         {message ? <div style={styles.message}>{message}</div> : null}
 
@@ -343,6 +346,16 @@ const styles = {
     borderRadius: 6,
     background: '#ffffff',
     padding: '8px 10px',
+  },
+  vipProfileBadge: {
+    display: 'inline-block',
+    marginTop: 8,
+    marginBottom: 8,
+    background: '#ffd54f',
+    color: '#5b3e00',
+    padding: '6px 10px',
+    borderRadius: 6,
+    fontWeight: 700,
   },
   profileGrid: {
     display: 'grid',

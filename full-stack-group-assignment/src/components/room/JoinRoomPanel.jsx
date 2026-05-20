@@ -1,4 +1,4 @@
-import { MARKER_COLOR_OPTIONS, MARKERS } from '../../constants/gameOptions';
+import { MARKER_COLOR_OPTIONS, MARKERS, VIP_MARKERS } from '../../constants/gameOptions';
 
 function JoinRoomPanel({
   joinRoomCode,
@@ -10,7 +10,9 @@ function JoinRoomPanel({
   joining,
   onJoinRoom,
   styles,
+  currentUser,
 }) {
+  const availableMarkers = (currentUser && currentUser.isPremium) ? [...MARKERS, ...VIP_MARKERS] : MARKERS;
   return (
     <div style={styles.resultBox}>
       <p><strong>Join Existing Room</strong></p>
@@ -33,7 +35,7 @@ function JoinRoomPanel({
           style={styles.select}
         >
           <option value="">Select marker</option>
-          {MARKERS.map((item) => (
+          {availableMarkers.map((item) => (
             <option key={item} value={item}>
               {item}
             </option>

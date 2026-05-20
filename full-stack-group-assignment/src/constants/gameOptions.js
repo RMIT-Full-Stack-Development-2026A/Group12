@@ -1,4 +1,5 @@
 export const MARKERS = ['X', 'O', 'A', 'B', '△', '○']
+export const VIP_MARKERS = ['★', '❤', '☯']
 export const MARKER_COLOR_OPTIONS = [
 	{ value: '#000000', label: 'Black' },
 	{ value: '#2563eb', label: 'Blue' },
@@ -10,4 +11,4 @@ export const MARKER_COLOR_OPTIONS = [
 ]
 export const DEFAULT_MARKER_COLOR = MARKER_COLOR_OPTIONS[0].value
 export const BOARD_SIZES = [3, 10, 15]
-export const BOARD_STYLES = ['1', '2', '3']
+export const BOARD_STYLES = ['1', '2', '3', '4', '5']

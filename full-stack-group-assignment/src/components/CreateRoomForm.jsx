@@ -341,6 +341,7 @@ function CreateRoomForm({ currentUser, onRequireLogin, onExitToMenu, initialJoin
             loading={loading}
             onPlay={handlePlay}
             styles={styles}
+            currentUser={currentUser}
           />
 
           {error && <p style={styles.error}>{error}</p>}
@@ -367,6 +368,7 @@ function CreateRoomForm({ currentUser, onRequireLogin, onExitToMenu, initialJoin
             joining={joining}
             onJoinRoom={handleJoinRoom}
             styles={styles}
+            currentUser={currentUser}
           />
         </div>
       ) : (

@@ -1,9 +1,11 @@
-import { BOARD_SIZES, MARKERS } from '../../constants/gameOptions';
+import { BOARD_SIZES, MARKERS, VIP_MARKERS } from '../../constants/gameOptions';
 
 const BOARD_STYLE_OPTIONS = [
   { value: 1, label: 'Classic' },
   { value: 2, label: 'Aurora' },
   { value: 3, label: 'Contrast' },
+  { value: 4, label: 'Midnight (VIP)', vip: true },
+  { value: 5, label: 'Emerald Glow (VIP)', vip: true },
 ];
 
 function CreateGamePanel({
@@ -17,7 +19,16 @@ function CreateGamePanel({
   loading,
   onPlay,
   styles,
+  currentUser,
 }) {
+  const availableMarkers = (currentUser && currentUser.isPremium) ? [...MARKERS, ...VIP_MARKERS] : MARKERS;
+  const availableStyleOptions = currentUser?.isPremium
+    ? BOARD_STYLE_OPTIONS
+    : BOARD_STYLE_OPTIONS.filter((opt) => !opt.vip);
+  const selectedStyleValue = availableStyleOptions.some((opt) => opt.value === selectedStyleId)
+    ? selectedStyleId
+    : availableStyleOptions[0]?.value || 1;
+
   return (
     <form onSubmit={onPlay} style={styles.form}>
       <div style={styles.row}>
@@ -46,7 +57,7 @@ function CreateGamePanel({
         <div style={styles.labelBox}>Marker :</div>
         <select value={marker} onChange={(e) => setMarker(e.target.value)} style={styles.select}>
           <option value="">Select marker</option>
-          {MARKERS.map((item) => (
+          {availableMarkers.map((item) => (
             <option key={item} value={item}>{item}</option>
           ))}
         </select>
@@ -69,7 +80,7 @@ function CreateGamePanel({
           onChange={(e) => setSelectedStyleId && setSelectedStyleId(Number(e.target.value))}
           style={styles.select}
         >
-          {BOARD_STYLE_OPTIONS.map((opt) => (
+          {availableStyleOptions.map((opt) => (
             <option key={opt.value} value={opt.value}>{opt.label}</option>
           ))}
         </select>

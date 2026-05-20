@@ -1,4 +1,6 @@
 const { game: gameService } = require('../services');
+const authRepository = require('../repositories/authRepository');
+const { VIP_MARKERS } = require('../constants/enums');
 const { validateCreateRoomDto } = require('../dtos/create-room.dto');
 const { validateJoinRoomDto } = require('../dtos/join-room.dto');
 const { validateMakeMoveDto } = require('../dtos/make-move.dto');
@@ -9,6 +11,16 @@ const createRoomController = async (req, res) => {
 
     if (error) {
       return res.status(400).json({ success: false, message: error });
+    }
+
+    if (VIP_MARKERS.includes(value.marker) || VIP_MARKERS.includes(value.starterMarker)) {
+      const premiumUser = value.userId ? await authRepository.findUserById(value.userId) : null;
+      if (!premiumUser?.isPremium) {
+        return res.status(403).json({
+          success: false,
+          message: 'VIP markers are available only to subscribed users.'
+        });
+      }
     }
 
     const result = await gameService.createRoom({ ...value, req });
@@ -37,6 +49,16 @@ const joinRoomController = async (req, res) => {
 
     if (error) {
       return res.status(400).json({ success: false, message: error });
+    }
+
+    if (VIP_MARKERS.includes(value.marker)) {
+      const premiumUser = await authRepository.findUserById(value.userId);
+      if (!premiumUser?.isPremium) {
+        return res.status(403).json({
+          success: false,
+          message: 'VIP markers are available only to subscribed users.'
+        });
+      }
     }
 
     const result = await gameService.joinRoom(value);

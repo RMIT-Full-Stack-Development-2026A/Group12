@@ -13,12 +13,14 @@ const COUNTRY_LIST = [
 	'New Zealand',
 ]
 
-const MARKER_OPTIONS = ['X', 'O', 'A', 'B', '△', '○']
+const STANDARD_MARKERS = ['X', 'O', 'A', 'B', '△', '○']
+const VIP_MARKERS = ['★', '❤', '☯']
+const MARKER_OPTIONS = [...STANDARD_MARKERS, ...VIP_MARKERS]
 const MARKER_COLORS = ['#000000', '#2563eb', '#dc2626', '#059669', '#d97706', '#7c3aed', '#0f766e']
 const BOARD_STYLES = [1, 2, 3]
 const BOARD_SIZES = ['10x10', '15x15']
 
-const ALLOWED_MARKERS = ['X', 'O', 'A', 'B', '△', '○'];
+const ALLOWED_MARKERS = [...STANDARD_MARKERS, ...VIP_MARKERS];
 const ALLOWED_BOARD_SIZES = [3, 10, 15];
 const ALLOWED_GAME_MODES = ['LOCAL', 'SINGLE', 'ONLINE'];
 const ALLOWED_AI_LEVELS = ['easy', 'medium', 'hard'];
@@ -31,6 +33,8 @@ const AI_BOT_NAMES = {
 
 module.exports = {
 	COUNTRY_LIST,
+	STANDARD_MARKERS,
+	VIP_MARKERS,
 	MARKER_OPTIONS,
 	MARKER_COLORS,
 	BOARD_STYLES,
