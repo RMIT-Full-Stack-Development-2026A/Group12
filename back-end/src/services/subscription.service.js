@@ -5,6 +5,7 @@ const { sendSubscriptionEmail } = require('./email.service');
 const Transaction = require('../models/transaction');
 const transactionService = require('./transaction.service');
 const paymentRepo = require('../repositories/payment.repository')
+const Subscription = require('../models/subscription');
 
 const PRICE = 100000;
 
