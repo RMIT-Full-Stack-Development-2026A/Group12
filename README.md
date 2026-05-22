@@ -62,3 +62,25 @@ On one account select the Play button and create a room with game mode "Online".
 Using the other account, navigate to the Arena page and the room that has just been created will appear there.
 
 Click "Join Room" and you will be moved into it and just need to wait for the host to start the game.
+
+6.Login Credentials for Testing
+
+6.1 User with none subcription:
+- username: test5
+- password: 123456
+6.2 User with subcription:
+- username: test41
+- password: 123456
+6.2 Admin:
+- username: admin360
+- password: 123456
+
+7.|    Member       |  Role      | Tasks                                                   | Contribuition Score | 
+  | Tuan Thai Hoang |  Manager   | Login, Anonymous Play, Fixing Front-end                 |          5          |
+  | Anh Nguyen Quang|  Member    | Logic Create Game, Join Game, Game Timer                |          5          |
+  | Nguyen Dao Binh |  Member    | Edit Profile, Bot Move,Arena ,Rejoin, Close Game, Chat  |          5          |
+  | Hieu Minh Nguyen|  Member    | Admin functions, Transaction, Wallet, Vip user          |          5          |
+
+
+		
+
