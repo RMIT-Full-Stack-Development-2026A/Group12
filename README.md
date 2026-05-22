@@ -2,6 +2,7 @@
 
 Welcome to our Tic-Tac-Toe application, a real-time multiplayer platform featuring WebSocket for online matchmaking, a stimulate payment flow using ngrok for premium features, a secure user authentication and an Admin Dashboard.
 
+Github Link: https://github.com/RMIT-Full-Stack-Development-2026A/Group12.git
 # How to run our project locally
 
 1. Prerequisites: make sure you have [Node.js](https://nodejs.org/en) installed in your machine and [MongoDB](https://www.mongodb.com) database running locally or in the MongoDB Atlas application. You will also need to have [ngrok](https://ngrok.com) installed and set up with your own domain.
