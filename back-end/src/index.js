@@ -46,7 +46,7 @@ app.get('/fake-bank', (_, res) => {
   res.send(`
     <html>
       <body style="text-align:center;margin-top:80px;font-family:sans-serif">
-        <h1>🏦 Fake Bank App</h1>
+        <h1>🏦 Third Party Bank App</h1>
 
         <script>
           const params = new URLSearchParams(window.location.search);

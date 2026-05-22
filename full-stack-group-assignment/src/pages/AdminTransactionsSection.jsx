@@ -46,8 +46,6 @@ function AdminTransactionsSection() {
   }
 
   const getStatusColor = (status) => {
-    // Assuming status is derived from transaction success/failure
-    // You may need to adjust based on your actual data structure
     return '#2e7d32'
   }
 

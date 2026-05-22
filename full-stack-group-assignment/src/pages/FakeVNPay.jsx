@@ -31,7 +31,7 @@ function FakeVNPay() {
 
   return (
     <div style={{ textAlign: 'center', marginTop: 100 }}>
-      <h1>Fake VNPay Gateway</h1>
+      <h1>Payment Gateway</h1>
       <p>Amount: {amount} VND</p>
 
       <button onClick={handleSuccess}>
