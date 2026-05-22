@@ -77,11 +77,13 @@ c)6.2 Admin:
 - username: admin360
 - password: 123456
 
-7.|    Member       |  Role      | Tasks                                                   | Contribuition Score | 
-  | Tuan Thai Hoang |  Manager   | Login, Anonymous Play, Fixing Front-end                 |          5          |
-  | Anh Nguyen Quang|  Member    | Logic Create Game, Join Game, Game Timer                |          5          |
-  | Nguyen Dao Binh |  Member    | Edit Profile, Bot Move,Arena ,Rejoin, Close Game, Chat  |          5          |
-  | Hieu Minh Nguyen|  Member    | Admin functions, Transaction, Wallet, Vip user          |          5          |
+7.
+| Member | Role | Tasks | Contribution Score |
+| :--- | :--- | :--- | :---: |
+| Tuan Thai Hoang | Manager | Login, Anonymous Play, Fixing Front-end | 5 |
+| Anh Nguyen Quang | Member | Logic Create Game, Join Game, Game Timer | 5 |
+| Nguyen Dao Binh | Member | Edit Profile, Bot Move, Arena, Rejoin, Close Game, Chat | 5 |
+| Hieu Minh Nguyen | Member | Admin functions, Transaction, Wallet, Vip user | 5 |
 
 
 		
