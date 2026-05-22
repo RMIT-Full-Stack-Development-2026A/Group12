@@ -65,13 +65,15 @@ Click "Join Room" and you will be moved into it and just need to wait for the ho
 
 6.Login Credentials for Testing
 
-6.1 User with none subcription:
+a)6.1 User with none subcription:
 - username: test5
 - password: 123456
-6.2 User with subcription:
+
+b)6.2 User with subcription:
 - username: test41
 - password: 123456
-6.2 Admin:
+
+c)6.2 Admin:
 - username: admin360
 - password: 123456
 
