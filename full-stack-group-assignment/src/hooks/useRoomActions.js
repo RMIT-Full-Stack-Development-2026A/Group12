@@ -224,13 +224,7 @@ export default function useRoomActions({
           session: nextSession || prev?.data?.session || null,
         },
       }));
-
-      // if (waitingForOtherPlayer) {
-      //   setShowBoard(false);
-      //   setInfoMessage(data.message || 'Waiting for the other player to confirm.');
-      //   return;
-      // }
-
+      
       if (nextSession) {
         setBoardSize(String(nextSession.boardSize || nextRoom?.boardSize || boardSize || ''));
         setShowBoard(true);
